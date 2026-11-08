@@ -1,6 +1,9 @@
 import os
+from pathlib import Path
 from typing import List
 from pydantic_settings import BaseSettings, SettingsConfigDict
+
+BASE_DIR = Path(__file__).resolve().parent.parent.parent  # points to /backend
 
 
 class Settings(BaseSettings):
@@ -19,7 +22,7 @@ class Settings(BaseSettings):
 
     # Gemini AI
     GEMINI_API_KEY: str = ""
-    GEMINI_MODEL: str = "gemini-2.0-flash"
+    GEMINI_MODEL: str = "gemini-3.5-flash"
 
     # CORS
     CORS_ORIGINS: List[str] = [
@@ -30,11 +33,14 @@ class Settings(BaseSettings):
     ]
 
     model_config = SettingsConfigDict(
-        env_file=".env",
+        env_file=[
+            str(BASE_DIR / ".env"),
+            str(BASE_DIR.parent / ".env"),
+            ".env"
+        ],
         env_file_encoding="utf-8",
         extra="ignore"
     )
 
 
 settings = Settings()
-

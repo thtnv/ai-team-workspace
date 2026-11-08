@@ -106,7 +106,7 @@ export const AIBreakdownModal: React.FC = () => {
             </div>
             <div>
               <h3 className="text-base font-bold text-slate-900 flex items-center gap-2">
-                AI Task Breakdown <span className="rounded bg-emerald-100 text-emerald-800 text-[10px] font-bold px-1.5 py-0.2 border border-emerald-200">Gemini 3.8</span>
+                AI Task Breakdown <span className="rounded bg-emerald-100 text-emerald-800 text-[10px] font-bold px-1.5 py-0.2 border border-emerald-200">Gemini 3.5</span>
               </h3>
               <p className="text-xs text-slate-500 font-medium">
                 Nhập yêu cầu lớn (User Story), AI sẽ tự động phân rã thành các task kỹ thuật cụ thể kèm checklist.

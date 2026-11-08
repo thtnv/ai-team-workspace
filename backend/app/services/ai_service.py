@@ -17,7 +17,7 @@ logger = logging.getLogger("syncpulse.ai")
 class AIService:
     def __init__(self):
         self.api_key = settings.GEMINI_API_KEY
-        self.model_name = settings.GEMINI_MODEL or "gemini-3.8-flash"
+        self.model_name = settings.GEMINI_MODEL or "gemini-3.5-flash"
         self._init_gemini()
 
     def _init_gemini(self):
@@ -34,7 +34,7 @@ class AIService:
             logger.info("No GEMINI_API_KEY provided. Intelligent AI Fallback engine will be active.")
 
     async def breakdown_task(self, prompt: str) -> TaskBreakdownResponse:
-        """Break down a feature request into 4-5 granular engineering tasks with checklists."""
+        """Break down a feature request into 4-5 granular engineering tasks with checklists using Gemini async."""
         if self.client:
             from google.genai import types
             prompt_content = f"""
@@ -61,131 +61,83 @@ class AIService:
                 ]
             }}
             """
-            try:
-                response = self.client.models.generate_content(
-                    model=self.model_name,
-                    contents=prompt_content,
-                    config=types.GenerateContentConfig(
-                        response_mime_type="application/json"
+            
+            candidate_models = list(dict.fromkeys([self.model_name, "gemini-3.5-flash", "gemini-3.7-flash"]))
+            for m in candidate_models:
+                try:
+                    logger.info(f"Requesting Gemini breakdown with model: {m}...")
+                    response = await self.client.aio.models.generate_content(
+                        model=m,
+                        contents=prompt_content,
+                        config=types.GenerateContentConfig(
+                            response_mime_type="application/json"
+                        )
                     )
-                )
-                data = json.loads(response.text)
-                return TaskBreakdownResponse(**data)
-            except Exception as e:
-                logger.warning(f"GenAI breakdown failed ({e}), using intelligent template generator.")
+                    data = json.loads(response.text)
+                    logger.info(f"Google Gemini [{m}] successfully generated breakdown for '{prompt}'")
+                    return TaskBreakdownResponse(**data)
+                except Exception as e:
+                    logger.warning(f"Gemini model [{m}] failed ({e}). Trying next candidate...")
 
-        # Intelligent Fallback Generator
-        title_lower = prompt.lower()
-        if "login" in title_lower or "auth" in title_lower or "đăng nhập" in title_lower:
-            return TaskBreakdownResponse(
-                summary=f"Kế hoạch phân rã kỹ thuật cho tính năng: '{prompt}'. Chia thành 4 task trọng tâm từ hạ tầng bảo mật đến giao diện người dùng.",
-                tasks=[
-                    TaskDraft(
-                        title="Thiết lập OAuth 2.0 Credentials & Security Policy",
-                        description="Cấu hình Google Cloud Console, tạo Client ID, Secret và cấu hình Redirect URI an toàn.",
-                        priority="high",
-                        estimated_hours=3,
-                        tags=["auth", "security", "infra"],
-                        checklists=[
-                            ChecklistDraft(title="Tạo OAuth 2.0 Client credentials trên GCP"),
-                            ChecklistDraft(title="Khai báo ENV: GOOGLE_CLIENT_ID và GOOGLE_CLIENT_SECRET"),
-                            ChecklistDraft(title="Cấu hình domain whitelist cho production và localhost")
-                        ]
-                    ),
-                    TaskDraft(
-                        title="Viết Backend Auth Flow & JWT Token Issuer",
-                        description="Viết endpoint xác thực token từ Google, kiểm tra hoặc tạo mới user trong MongoDB, sinh JWT session.",
-                        priority="high",
-                        estimated_hours=5,
-                        tags=["backend", "api", "jwt"],
-                        checklists=[
-                            ChecklistDraft(title="Thêm endpoint POST /api/auth/google"),
-                            ChecklistDraft(title="Verify Google ID Token với Google Auth library"),
-                            ChecklistDraft(title="Tạo JWT access token & refresh token")
-                        ]
-                    ),
-                    TaskDraft(
-                        title="Xây dựng giao diện Login UI & Google One-Tap",
-                        description="Thiết kế nút Đăng nhập Google với Tailwind CSS, tích hợp Google Identity Services.",
-                        priority="medium",
-                        estimated_hours=4,
-                        tags=["frontend", "ui", "tailwind"],
-                        checklists=[
-                            ChecklistDraft(title="Tạo component GoogleSignInButton"),
-                            ChecklistDraft(title="Xử lý state loading & error toast notification"),
-                            ChecklistDraft(title="Lưu JWT token vào secure cookie / localStorage")
-                        ]
-                    ),
-                    TaskDraft(
-                        title="Viết Unit Test & E2E Test cho Luồng Đăng Nhập",
-                        description="Đảm bảo luồng đăng nhập không bị lỗi race condition và xử lý token hết hạn chuẩn xác.",
-                        priority="medium",
-                        estimated_hours=3,
-                        tags=["testing", "qa"],
-                        checklists=[
-                            ChecklistDraft(title="Unit test backend verify token handler"),
-                            ChecklistDraft(title="Test tự động refresh token khi hết hạn")
-                        ]
-                    )
-                ]
-            )
-
-        # Dynamic fallback matching user's input
+        # Dynamic Contextual Generator (Fallback only when all external AI APIs are unreachable)
+        logger.warning("All Gemini API candidates unreachable or key missing. Using dynamic contextual engine.")
+        clean_p = prompt.strip()
         return TaskBreakdownResponse(
-            summary=f"Phân tích kiến trúc kỹ thuật cho yêu cầu: '{prompt}'. Gồm 4 giai đoạn chuẩn engineering: Thiết kế Schema, Backend API, Giao diện Frontend, và Kiểm thử tích hợp.",
+            summary=f"Kế hoạch phân rã kỹ thuật cho tính năng: '{clean_p}'. Chia thành 4-5 task trọng tâm từ kiến trúc hạ tầng đến giao diện người dùng.",
             tasks=[
                 TaskDraft(
-                    title=f"Thiết kế Schema & Kiến trúc Dữ liệu cho: {prompt[:35]}",
-                    description=f"Xác định các entity, MongoDB document model và Pydantic schemas cần thiết để hiện thực hóa '{prompt}'.",
+                    title=f"Thiết kế Kiến trúc & Chuẩn bị Môi trường cho: {clean_p}",
+                    description=f"Khởi tạo cấu hình ban đầu, khai báo biến môi trường (ENV) và thiết kế Schema dữ liệu phục vụ '{clean_p}'.",
                     priority="high",
-                    estimated_hours=3,
-                    tags=["database", "architecture"],
+                    estimated_hours=4,
+                    tags=["architecture", "security", "infra"],
                     checklists=[
-                        ChecklistDraft(title="Định nghĩa MongoDB Collection schema"),
-                        ChecklistDraft(title="Khai báo Pydantic Request/Response models"),
-                        ChecklistDraft(title="Thiết lập Index để tối ưu truy vấn")
+                        ChecklistDraft(title=f"Đăng ký tài khoản và thiết lập cấu hình Provider cho {clean_p}"),
+                        ChecklistDraft(title="Khai báo các khóa bí mật (Secrets & API Keys) vào .env an toàn"),
+                        ChecklistDraft(title="Thiết kế và index các trường dữ liệu cần thiết trong MongoDB")
                     ]
                 ),
                 TaskDraft(
-                    title=f"Phát triển REST API Endpoints & Business Logic",
-                    description=f"Triển khai các route FastAPI cho '{prompt}' kèm validation, error handling và audit logging.",
+                    title=f"Phát triển Backend API & Xử lý Xác thực cho: {clean_p}",
+                    description=f"Xây dựng REST API endpoint tiếp nhận request, verify token hoặc dữ liệu với bên thứ ba, và cấp phát JWT session cho '{clean_p}'.",
+                    priority="urgent",
+                    estimated_hours=6,
+                    tags=["backend", "api", "auth"],
+                    checklists=[
+                        ChecklistDraft(title="Tạo route POST API xử lý callback và xác thực token"),
+                        ChecklistDraft(title="Xử lý liên kết tài khoản (Account Linking) và phòng chống trùng lặp"),
+                        ChecklistDraft(title="Bổ sung cơ chế Rate Limiting và kiểm tra lỗi ngoại lệ")
+                    ]
+                ),
+                TaskDraft(
+                    title=f"Xây dựng Giao diện Người dùng & Tích hợp SDK cho: {clean_p}",
+                    description=f"Thiết kế UI component chuẩn UX, gắn sự kiện click và tích hợp luồng điều hướng mượt mà cho '{clean_p}'.",
                     priority="high",
                     estimated_hours=5,
-                    tags=["backend", "fastapi"],
+                    tags=["frontend", "ui", "react"],
                     checklists=[
-                        ChecklistDraft(title="Viết router CRUD và dependency injection"),
-                        ChecklistDraft(title="Xử lý validation lỗi 400/404/500"),
-                        ChecklistDraft(title="Gửi Socket.IO broadcast khi dữ liệu thay đổi")
+                        ChecklistDraft(title=f"Tạo nút bấm và form giao diện tương tác cho {clean_p}"),
+                        ChecklistDraft(title="Xử lý các trạng thái: Loading, Success và Báo lỗi trực quan"),
+                        ChecklistDraft(title="Lưu trữ Access Token vào Client State (Zustand / LocalStorage)")
                     ]
                 ),
                 TaskDraft(
-                    title=f"Xây dựng Giao diện Người dùng (Next.js & Tailwind)",
-                    description=f"Tạo component giao diện tương tác cho '{prompt}' với Dark Mode và điểm nhấn Neon Acid.",
-                    priority="medium",
-                    estimated_hours=6,
-                    tags=["frontend", "nextjs", "ui"],
-                    checklists=[
-                        ChecklistDraft(title="Dựng layout và state management với Zustand"),
-                        ChecklistDraft(title="Tích hợp Toast và Skeleton loading states"),
-                        ChecklistDraft(title="Kiểm thử responsive mobile/desktop")
-                    ]
-                ),
-                TaskDraft(
-                    title=f"Viết Test & Tích hợp Real-time Notifications",
-                    description="Kiểm thử tích hợp từ đầu đến cuối và gắn thông báo realtime cho các thành viên trong nhóm.",
+                    title=f"Kiểm thử End-to-End & Tuân thủ Chính sách Bảo mật cho: {clean_p}",
+                    description=f"Viết bộ test case tự động cho toàn bộ luồng '{clean_p}' và kiểm tra tính an toàn dữ liệu người dùng.",
                     priority="medium",
                     estimated_hours=4,
-                    tags=["testing", "realtime"],
+                    tags=["testing", "security", "qa"],
                     checklists=[
-                        ChecklistDraft(title="Kiểm thử luồng tương tác End-to-End"),
-                        ChecklistDraft(title="Kiểm tra thông báo WebSocket đồng bộ giữa các tab")
+                        ChecklistDraft(title="Viết Integration Test cho luồng thành công và luồng thất bại"),
+                        ChecklistDraft(title="Kiểm tra lỗ hổng CSRF và xác thực Domain Whitelist"),
+                        ChecklistDraft(title="Chuyển trạng thái ứng dụng sang Production Mode")
                     ]
                 )
             ]
         )
 
     async def summarize_meeting_notes(self, raw_content: str) -> MeetingSummarizeResponse:
-        """Extract overview, key architectural decisions, and actionable items from raw meeting notes."""
+        """Extract overview, key architectural decisions, and actionable items from raw meeting notes using Gemini async."""
         if self.client:
             from google.genai import types
             prompt_content = f"""
@@ -213,18 +165,23 @@ class AIService:
                 ]
             }}
             """
-            try:
-                response = self.client.models.generate_content(
-                    model=self.model_name,
-                    contents=prompt_content,
-                    config=types.GenerateContentConfig(
-                        response_mime_type="application/json"
+            
+            candidate_models = list(dict.fromkeys([self.model_name, "gemini-3.5-flash", "gemini-3.7-flash"]))
+            for m in candidate_models:
+                try:
+                    logger.info(f"Requesting Gemini meeting summary with model: {m}...")
+                    response = await self.client.aio.models.generate_content(
+                        model=m,
+                        contents=prompt_content,
+                        config=types.GenerateContentConfig(
+                            response_mime_type="application/json"
+                        )
                     )
-                )
-                data = json.loads(response.text)
-                return MeetingSummarizeResponse(**data)
-            except Exception as e:
-                logger.warning(f"GenAI meeting summarizer failed ({e}), using intelligent template extractor.")
+                    data = json.loads(response.text)
+                    logger.info(f"Google Gemini [{m}] successfully summarized meeting notes.")
+                    return MeetingSummarizeResponse(**data)
+                except Exception as e:
+                    logger.warning(f"Gemini model [{m}] failed ({e}). Trying next candidate...")
 
         # Fallback intelligent extractor
         lines = [line.strip("- *• \t\r\n") for line in raw_content.splitlines() if line.strip()]
@@ -253,36 +210,20 @@ class AIService:
                     is_converted_to_task=False
                 ))
                 action_count += 1
-                if action_count > 5:
-                    break
 
         if not action_items:
             action_items = [
                 ActionItem(
                     id="act-1",
-                    action="Thiết lập kết nối Socket.IO room isolation theo Board ID",
+                    action=lines[0] if lines else "Triển khai các quyết định đã thống nhất trong cuộc họp",
                     assignee_name="Lead Engineer",
                     suggested_priority="high",
-                    is_converted_to_task=False
-                ),
-                ActionItem(
-                    id="act-2",
-                    action="Hoàn thiện giao diện kéo thả Kanban với @dnd-kit",
-                    assignee_name="Frontend Dev",
-                    suggested_priority="high",
-                    is_converted_to_task=False
-                ),
-                ActionItem(
-                    id="act-3",
-                    action="Tích hợp Google Gemini Structured Output cho Task Breakdown",
-                    assignee_name="AI Engineer",
-                    suggested_priority="medium",
                     is_converted_to_task=False
                 )
             ]
 
         return MeetingSummarizeResponse(
-            overview=f"Cuộc họp thảo luận định hướng kiến trúc hệ thống và phân bổ nhiệm vụ. Tổng hợp {len(action_items)} đầu việc hành động cần giải quyết ngay.",
+            overview=f"Tóm tắt cuộc họp gồm {len(lines)} đầu mục thảo luận về quy trình kỹ thuật và phân bổ công việc.",
             key_decisions=decisions,
             action_items=action_items
         )
