@@ -109,12 +109,6 @@ class ApiClient {
     });
   }
 
-  async joinDemoWorkspace(): Promise<Workspace> {
-    return this.request<Workspace>('/api/workspaces/join-demo', {
-      method: 'POST',
-    });
-  }
-
   async inviteMember(
     workspaceId: string,
     email: string,

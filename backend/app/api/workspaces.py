@@ -145,46 +145,6 @@ async def join_workspace(req: WorkspaceJoinRequest, current_user: dict = Depends
     )
 
 
-@router.post("/join-demo", response_model=WorkspaceResponse)
-async def join_demo_workspace(current_user: dict = Depends(get_current_user)):
-    """Quick demo join for reviewers/interviewers to explore pre-seeded data."""
-    user_id = str(current_user["_id"])
-    workspaces_col = db_manager.get_collection("workspaces")
-
-    ws = await workspaces_col.find_one({"_id": "ws-acme-eng"})
-    if not ws:
-        ws = await workspaces_col.find_one({})
-    if not ws:
-        raise HTTPException(status_code=404, detail="Không tìm thấy dữ liệu mẫu.")
-
-    members = ws.get("members", [])
-    if not any(m.get("user_id") == user_id for m in members):
-        new_member = {
-            "user_id": user_id,
-            "email": current_user["email"],
-            "full_name": current_user["full_name"],
-            "role": "member",
-            "avatar_url": current_user.get("avatar_url")
-        }
-        members.append(new_member)
-        await workspaces_col.update_one(
-            {"_id": ws["_id"]},
-            {"$set": {"members": members, "updated_at": datetime.now(timezone.utc).isoformat()}}
-        )
-        ws["members"] = members
-
-    return WorkspaceResponse(
-        id=str(ws["_id"]),
-        name=ws["name"],
-        slug=ws.get("slug", ""),
-        description=ws.get("description", ""),
-        owner_id=str(ws.get("owner_id", user_id)),
-        members=[WorkspaceMemberSchema(**m) for m in ws.get("members", [])],
-        created_at=ws.get("created_at", ""),
-        updated_at=ws.get("updated_at", "")
-    )
-
-
 @router.post("/{workspace_id}/invite")
 async def invite_member(workspace_id: str, req: WorkspaceInviteRequest, current_user: dict = Depends(get_current_user)):
     """Invite a member by email to the current workspace."""

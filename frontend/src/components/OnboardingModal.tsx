@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { useStore } from '@/store/useStore';
 import { api } from '@/lib/api';
 import { socketService } from '@/lib/socket';
@@ -8,7 +8,6 @@ import {
   Users,
   Rocket,
   KeyRound,
-  Compass,
   Loader2,
   CheckCircle2,
   AlertCircle,
@@ -22,7 +21,6 @@ import {
 export const OnboardingModal: React.FC = () => {
   const {
     currentUser,
-    workspaces,
     isOnboardingOpen,
     setOnboardingOpen,
     setWorkspaces,
@@ -47,6 +45,19 @@ export const OnboardingModal: React.FC = () => {
   const [loading, setLoading] = useState(false);
   const [errorMsg, setErrorMsg] = useState('');
   const [successMsg, setSuccessMsg] = useState('');
+
+  // Close on Escape key
+  useEffect(() => {
+    const handleKeyDown = (e: KeyboardEvent) => {
+      if (e.key === 'Escape') {
+        setOnboardingOpen(false);
+      }
+    };
+    if (isOnboardingOpen) {
+      window.addEventListener('keydown', handleKeyDown);
+    }
+    return () => window.removeEventListener('keydown', handleKeyDown);
+  }, [isOnboardingOpen, setOnboardingOpen]);
 
   if (!isOnboardingOpen) return null;
 
@@ -78,7 +89,12 @@ export const OnboardingModal: React.FC = () => {
       const notes = await api.getNotes(workspace.id);
       setNotes(notes);
 
+      // Close modal immediately after successful load
       setOnboardingOpen(false);
+      setSuccessMsg('');
+      setErrorMsg('');
+      setWorkspaceName('');
+      setInviteCode('');
     } catch (e: any) {
       setErrorMsg(e.message || 'Lỗi khi tải thông tin không gian làm việc.');
     }
@@ -132,35 +148,29 @@ export const OnboardingModal: React.FC = () => {
     }
   };
 
-  const handleJoinDemo = async () => {
-    setErrorMsg('');
-    setLoading(true);
-    try {
-      const demoWs = await api.joinDemoWorkspace();
-      setSuccessMsg('Đã kết nối vào nhóm mẫu thành công!');
-      await loadWorkspaceDetails(demoWs);
-    } catch (err: any) {
-      setErrorMsg(err.message || 'Không thể tải dữ liệu mẫu.');
-    } finally {
-      setLoading(false);
-    }
-  };
-
-  const canClose = workspaces.length > 0;
-
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center p-3 sm:p-4 bg-slate-900/40 backdrop-blur-xs overflow-y-auto">
+    <div
+      className="fixed inset-0 z-50 flex items-center justify-center p-3 sm:p-4 bg-slate-900/40 backdrop-blur-xs overflow-y-auto"
+      onClick={(e) => {
+        if (e.target === e.currentTarget) {
+          setOnboardingOpen(false);
+        }
+      }}
+    >
       <div className="relative w-full max-w-[420px] rounded-2xl border border-slate-200 bg-white shadow-2xl overflow-hidden flex flex-col my-auto max-h-[88vh]">
-        {/* Close button if user already belongs to a workspace */}
-        {canClose && (
-          <button
-            onClick={() => setOnboardingOpen(false)}
-            className="absolute right-3 top-3 z-10 rounded-lg p-1 text-slate-400 hover:bg-slate-100 hover:text-slate-700 transition cursor-pointer"
-            title="Đóng"
-          >
-            <X className="h-4 w-4" />
-          </button>
-        )}
+        {/* ALWAYS VISIBLE CLOSE BUTTON (X) */}
+        <button
+          type="button"
+          onClick={() => {
+            setOnboardingOpen(false);
+            setErrorMsg('');
+            setSuccessMsg('');
+          }}
+          className="absolute right-3 top-3 z-20 rounded-lg p-1.5 text-slate-400 hover:bg-slate-100 hover:text-slate-800 transition cursor-pointer"
+          title="Đóng (Esc)"
+        >
+          <X className="h-4.5 w-4.5" />
+        </button>
 
         {/* Compact Header */}
         <div className="border-b border-slate-100 bg-slate-50/70 px-4 pt-3.5 pb-2.5 text-center shrink-0">
@@ -234,7 +244,7 @@ export const OnboardingModal: React.FC = () => {
                   <input
                     type="text"
                     required
-                    placeholder="VD: AI Tech Squad, Nhóm Đồ Án..."
+                    placeholder="VD: Markee, AI Tech Squad..."
                     value={workspaceName}
                     onChange={(e) => setWorkspaceName(e.target.value)}
                     className="w-full rounded-lg border border-slate-300 pl-8 pr-2.5 py-1.5 text-xs text-slate-900 placeholder-slate-400 focus:border-slate-900 focus:outline-hidden"
@@ -335,22 +345,6 @@ export const OnboardingModal: React.FC = () => {
               </button>
             </form>
           )}
-
-          {/* Quick Demo Access Bar */}
-          <div className="pt-2 mt-2 border-t border-slate-100 flex items-center justify-between text-[11px]">
-            <span className="text-slate-400 text-[10px]">
-              Dành cho Người kiểm thử / Đánh giá:
-            </span>
-            <button
-              type="button"
-              disabled={loading}
-              onClick={handleJoinDemo}
-              className="inline-flex items-center gap-1 text-[11px] font-semibold text-slate-700 hover:text-slate-950 underline underline-offset-2 transition cursor-pointer"
-            >
-              <Compass className="h-3 w-3 text-amber-500" />
-              Xem dữ liệu mẫu (Sprint 24)
-            </button>
-          </div>
         </div>
       </div>
     </div>
