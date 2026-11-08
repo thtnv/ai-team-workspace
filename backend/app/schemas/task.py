@@ -9,6 +9,20 @@ class SubtaskItem(BaseModel):
     is_done: bool = False
 
 
+class CommentItem(BaseModel):
+    id: str
+    user_id: str
+    user_name: str
+    user_email: Optional[str] = None
+    user_avatar: Optional[str] = None
+    content: str
+    created_at: str
+
+
+class CommentCreate(BaseModel):
+    content: str = Field(..., min_length=1, max_length=3000)
+
+
 class TaskCreate(BaseModel):
     board_id: str
     workspace_id: str
@@ -57,6 +71,7 @@ class TaskResponse(BaseSchema):
     tags: List[str] = []
     due_date: Optional[str] = None
     checklists: List[SubtaskItem] = []
+    comments: List[CommentItem] = []
     ai_generated: bool = False
     created_by: Optional[str] = None
     created_at: str

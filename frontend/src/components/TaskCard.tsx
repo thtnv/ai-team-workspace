@@ -6,7 +6,7 @@ import { CSS } from '@dnd-kit/utilities';
 import { Task, Priority } from '@/types';
 import { useStore } from '@/store/useStore';
 import { socketService } from '@/lib/socket';
-import { CheckSquare, Clock, Sparkles, GripVertical, Lock } from 'lucide-react';
+import { CheckSquare, Clock, Sparkles, GripVertical, Lock, MessageSquare } from 'lucide-react';
 
 interface TaskCardProps {
   task: Task;
@@ -158,13 +158,21 @@ export const TaskCard: React.FC<TaskCardProps> = ({ task }) => {
           )}
         </div>
 
-        {/* Due Date */}
-        {task.due_date && (
-          <div className="flex items-center gap-1 text-slate-500 font-mono text-[10px] font-medium">
-            <Clock className="h-3 w-3 text-slate-400" />
-            <span>{task.due_date}</span>
-          </div>
-        )}
+        {/* Right meta: Comments & Due Date */}
+        <div className="flex items-center gap-2 text-slate-500 font-mono text-[10px] font-medium">
+          {task.comments && task.comments.length > 0 && (
+            <div className="flex items-center gap-0.5 text-slate-600 font-bold" title={`${task.comments.length} bình luận`}>
+              <MessageSquare className="h-3 w-3 text-slate-400" />
+              <span>{task.comments.length}</span>
+            </div>
+          )}
+          {task.due_date && (
+            <div className="flex items-center gap-1">
+              <Clock className="h-3 w-3 text-slate-400" />
+              <span>{task.due_date}</span>
+            </div>
+          )}
+        </div>
       </div>
     </div>
   );

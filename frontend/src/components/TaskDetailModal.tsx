@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { useStore } from '@/store/useStore';
 import { api } from '@/lib/api';
 import { socketService } from '@/lib/socket';
@@ -10,8 +10,37 @@ import {
   CheckSquare,
   Plus,
   Sparkles,
+  MessageSquare,
+  Send,
+  Clock,
+  User as UserIcon,
+  Loader2,
 } from 'lucide-react';
-import { Task, Priority, Subtask } from '@/types';
+import { Task, Priority, Subtask, TaskComment } from '@/types';
+
+function formatRelativeTime(isoString?: string) {
+  if (!isoString) return 'Vừa xong';
+  try {
+    const date = new Date(isoString);
+    const now = new Date();
+    const diffSec = Math.floor((now.getTime() - date.getTime()) / 1000);
+    if (diffSec < 45) return 'Vừa xong';
+    const diffMin = Math.floor(diffSec / 60);
+    if (diffMin < 60) return `${diffMin} phút trước`;
+    const diffHours = Math.floor(diffMin / 60);
+    if (diffHours < 24) return `${diffHours} giờ trước`;
+    const diffDays = Math.floor(diffHours / 24);
+    if (diffDays < 7) return `${diffDays} ngày trước`;
+    return date.toLocaleDateString('vi-VN', {
+      month: 'short',
+      day: 'numeric',
+      hour: '2-digit',
+      minute: '2-digit',
+    });
+  } catch {
+    return 'Gần đây';
+  }
+}
 
 export const TaskDetailModal: React.FC = () => {
   const {
@@ -20,6 +49,8 @@ export const TaskDetailModal: React.FC = () => {
     updateTask,
     deleteTask,
     currentBoard,
+    currentUser,
+    addTaskComment,
   } = useStore();
 
   const [title, setTitle] = useState('');
@@ -30,6 +61,31 @@ export const TaskDetailModal: React.FC = () => {
   const [checklists, setChecklists] = useState<Subtask[]>([]);
   const [newChecklistTitle, setNewChecklistTitle] = useState('');
   const [saving, setSaving] = useState(false);
+  const [commentInput, setCommentInput] = useState('');
+  const [sendingComment, setSendingComment] = useState(false);
+  const commentsEndRef = useRef<HTMLDivElement | null>(null);
+
+  const comments = selectedTaskForDetail?.comments || [];
+
+  const handleSendComment = async (e?: React.FormEvent) => {
+    if (e) e.preventDefault();
+    if (!commentInput.trim() || !selectedTaskForDetail || sendingComment) return;
+
+    const content = commentInput.trim();
+    setSendingComment(true);
+    try {
+      const newComment = await api.addTaskComment(selectedTaskForDetail.id, content);
+      addTaskComment(selectedTaskForDetail.id, newComment);
+      setCommentInput('');
+      setTimeout(() => {
+        commentsEndRef.current?.scrollIntoView({ behavior: 'smooth' });
+      }, 100);
+    } catch (err: any) {
+      alert(err.message || 'Lỗi khi gửi bình luận');
+    } finally {
+      setSendingComment(false);
+    }
+  };
 
   useEffect(() => {
     if (selectedTaskForDetail) {
@@ -303,6 +359,100 @@ export const TaskDetailModal: React.FC = () => {
                 <span>Thêm</span>
               </button>
             </div>
+          </div>
+
+          {/* Comments Section (Plane & Linear Real-time Task Comments) */}
+          <div className="pt-4 border-t border-slate-200">
+            <div className="flex items-center justify-between mb-3">
+              <label className="text-[11px] font-bold uppercase tracking-wider text-slate-500 flex items-center gap-1.5">
+                <MessageSquare className="h-3.5 w-3.5 text-slate-700" />
+                <span>Thảo luận &amp; Bình luận ({comments.length})</span>
+              </label>
+              <span className="text-[10px] text-slate-400 font-medium">Đồng bộ WebSockets tức thì</span>
+            </div>
+
+            {/* Comments List */}
+            <div className="space-y-3 mb-3 max-h-52 overflow-y-auto pr-1">
+              {comments.length === 0 ? (
+                <div className="rounded-xl border border-dashed border-slate-200 bg-slate-50/50 p-4 text-center">
+                  <p className="text-xs text-slate-400 font-medium">
+                    Chưa có bình luận nào. Hãy bắt đầu cuộc trao đổi kỹ thuật với nhóm!
+                  </p>
+                </div>
+              ) : (
+                comments.map((cmt) => {
+                  const isMe = currentUser?.id === cmt.user_id;
+                  const initial = (cmt.user_name || 'U').charAt(0).toUpperCase();
+
+                  return (
+                    <div
+                      key={cmt.id}
+                      className="flex items-start gap-2.5 rounded-xl border border-slate-100 bg-slate-50/60 p-3 transition hover:bg-slate-50"
+                    >
+                      {/* Avatar */}
+                      <div className="flex h-7 w-7 shrink-0 items-center justify-center rounded-full bg-slate-900 text-[#D4FF00] font-black text-xs shadow-2xs">
+                        {initial}
+                      </div>
+
+                      {/* Content */}
+                      <div className="flex-1 min-w-0">
+                        <div className="flex items-center gap-2 mb-1">
+                          <span className="text-xs font-bold text-slate-900 truncate">
+                            {cmt.user_name}
+                          </span>
+                          {isMe && (
+                            <span className="rounded bg-slate-200 px-1 py-0.2 text-[9px] font-bold text-slate-700">
+                              Bạn
+                            </span>
+                          )}
+                          <span className="text-[10px] text-slate-400 font-mono ml-auto">
+                            {formatRelativeTime(cmt.created_at)}
+                          </span>
+                        </div>
+                        <p className="text-xs text-slate-700 whitespace-pre-wrap leading-relaxed">
+                          {cmt.content}
+                        </p>
+                      </div>
+                    </div>
+                  );
+                })
+              )}
+              <div ref={commentsEndRef} />
+            </div>
+
+            {/* Comment Input */}
+            <form onSubmit={handleSendComment} className="flex gap-2 items-start">
+              <div className="flex-1 relative">
+                <textarea
+                  value={commentInput}
+                  onChange={(e) => setCommentInput(e.target.value)}
+                  onKeyDown={(e) => {
+                    if (e.key === 'Enter' && !e.shiftKey) {
+                      e.preventDefault();
+                      handleSendComment();
+                    }
+                  }}
+                  rows={2}
+                  placeholder="Viết bình luận, trao đổi kỹ thuật (Enter để gửi)..."
+                  className="w-full rounded-xl border border-slate-300 bg-slate-50 px-3.5 py-2 text-xs text-slate-800 placeholder-slate-400 focus:bg-white focus:border-slate-900 focus:outline-hidden resize-none"
+                />
+              </div>
+
+              <button
+                type="submit"
+                disabled={!commentInput.trim() || sendingComment}
+                className="inline-flex items-center gap-1.5 rounded-xl bg-slate-900 text-white px-3.5 py-2.5 text-xs font-bold hover:bg-slate-800 transition cursor-pointer disabled:opacity-40 disabled:cursor-not-allowed shadow-xs"
+              >
+                {sendingComment ? (
+                  <Loader2 className="h-3.5 w-3.5 animate-spin" />
+                ) : (
+                  <>
+                    <span>Gửi</span>
+                    <Send className="h-3 w-3 text-[#D4FF00]" />
+                  </>
+                )}
+              </button>
+            </form>
           </div>
         </div>
 

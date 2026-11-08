@@ -3,7 +3,15 @@ from datetime import datetime, timezone
 from typing import List, Optional
 from fastapi import APIRouter, HTTPException, status, Depends
 from app.db.mongodb import db_manager
-from app.schemas.task import TaskCreate, TaskUpdate, TaskMoveRequest, TaskResponse, SubtaskItem
+from app.schemas.task import (
+    TaskCreate,
+    TaskUpdate,
+    TaskMoveRequest,
+    TaskResponse,
+    SubtaskItem,
+    CommentItem,
+    CommentCreate,
+)
 from app.api.auth import get_current_user
 from app.sockets.socket_manager import broadcast_board_event
 
@@ -39,6 +47,7 @@ async def create_task(req: TaskCreate, current_user: dict = Depends(get_current_
         "tags": req.tags or [],
         "due_date": req.due_date,
         "checklists": checklists,
+        "comments": [],
         "ai_generated": req.ai_generated,
         "created_by": user_id,
         "created_at": now_iso,
@@ -59,6 +68,7 @@ async def create_task(req: TaskCreate, current_user: dict = Depends(get_current_
         tags=doc["tags"],
         due_date=doc["due_date"],
         checklists=[SubtaskItem(**c) for c in doc["checklists"]],
+        comments=[],
         ai_generated=doc["ai_generated"],
         created_by=user_id,
         created_at=now_iso,
@@ -120,6 +130,7 @@ async def update_task(task_id: str, req: TaskUpdate, current_user: dict = Depend
         tags=updated_doc.get("tags", []),
         due_date=updated_doc.get("due_date"),
         checklists=[SubtaskItem(**c) for c in updated_doc.get("checklists", [])],
+        comments=[CommentItem(**c) for c in updated_doc.get("comments", [])],
         ai_generated=updated_doc.get("ai_generated", False),
         created_by=updated_doc.get("created_by"),
         created_at=updated_doc.get("created_at", ""),
@@ -190,4 +201,70 @@ async def delete_task(task_id: str, current_user: dict = Depends(get_current_use
     )
 
     return {"status": "deleted", "task_id": task_id}
+
+
+@router.post("/{task_id}/comments", response_model=CommentItem)
+async def add_task_comment(
+    task_id: str,
+    req: CommentCreate,
+    current_user: dict = Depends(get_current_user)
+):
+    tasks_col = db_manager.get_collection("tasks")
+    task = await tasks_col.find_one({"_id": task_id})
+    if not task:
+        raise HTTPException(status_code=404, detail="Task not found")
+
+    user_id = str(current_user["_id"])
+    user_name = current_user.get("full_name") or current_user.get("email", "Member")
+    user_email = current_user.get("email")
+    user_avatar = current_user.get("avatar_url")
+    now_iso = datetime.now(timezone.utc).isoformat()
+    comment_id = f"cmt-{uuid.uuid4().hex[:10]}"
+
+    comment_doc = {
+        "id": comment_id,
+        "user_id": user_id,
+        "user_name": user_name,
+        "user_email": user_email,
+        "user_avatar": user_avatar,
+        "content": req.content.strip(),
+        "created_at": now_iso
+    }
+
+    await tasks_col.update_one(
+        {"_id": task_id},
+        {
+            "$push": {"comments": comment_doc},
+            "$set": {"updated_at": now_iso}
+        }
+    )
+
+    # Broadcast real-time comment to all members watching this board
+    board_id = task["board_id"]
+    await broadcast_board_event(
+        board_id=board_id,
+        event_name="task:comment_added",
+        payload={
+            "task_id": task_id,
+            "board_id": board_id,
+            "comment": comment_doc
+        }
+    )
+
+    return CommentItem(**comment_doc)
+
+
+@router.get("/{task_id}/comments", response_model=List[CommentItem])
+async def get_task_comments(
+    task_id: str,
+    current_user: dict = Depends(get_current_user)
+):
+    tasks_col = db_manager.get_collection("tasks")
+    task = await tasks_col.find_one({"_id": task_id})
+    if not task:
+        raise HTTPException(status_code=404, detail="Task not found")
+
+    raw_comments = task.get("comments", [])
+    return [CommentItem(**c) for c in raw_comments]
+
 

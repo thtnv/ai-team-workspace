@@ -6,8 +6,11 @@ import { api } from '@/lib/api';
 import { socketService } from '@/lib/socket';
 import { Navbar } from '@/components/Navbar';
 import { KanbanBoard } from '@/components/KanbanBoard';
+import { ListView } from '@/components/ListView';
 import { FilterBar } from '@/components/FilterBar';
 import { QuickStartSteps } from '@/components/QuickStartSteps';
+import { CommandPalette } from '@/components/CommandPalette';
+import { ProductWalkthrough } from '@/components/ProductWalkthrough';
 import { AIBreakdownModal } from '@/components/AIBreakdownModal';
 import { AINotesModal } from '@/components/AINotesModal';
 import { TaskDetailModal } from '@/components/TaskDetailModal';
@@ -15,7 +18,18 @@ import { CreateTaskModal } from '@/components/CreateTaskModal';
 import { LoginModal } from '@/components/LoginModal';
 import { OnboardingModal } from '@/components/OnboardingModal';
 import { InviteModal } from '@/components/InviteModal';
-import { Sparkles, ArrowUpRight, LogIn, ShieldAlert, Rocket, Building2, ChevronDown } from 'lucide-react';
+import {
+  Sparkles,
+  ArrowUpRight,
+  LogIn,
+  ShieldAlert,
+  Rocket,
+  Building2,
+  ChevronDown,
+  Kanban,
+  List,
+  Search,
+} from 'lucide-react';
 
 export default function Home() {
   const {
@@ -28,6 +42,8 @@ export default function Home() {
     setBoards,
     setCurrentBoard,
     currentBoard,
+    currentView,
+    setCurrentView,
     tasks,
     setTasks,
     notes,
@@ -37,6 +53,8 @@ export default function Home() {
     setOnboardingOpen,
     setInviteModalOpen,
     setQuickStartOpen,
+    setCommandPaletteOpen,
+    setWalkthroughOpen,
   } = useStore();
 
   const [loading, setLoading] = useState(true);
@@ -169,30 +187,61 @@ export default function Home() {
             )}
           </div>
 
-          {/* Quick Start Guide Steps (Replaces old 'Gõ Đăng nhập Google' pill) */}
+          {/* Subheader Right Actions: View Switch, Ctrl+K, Tour */}
           {currentUser && (
             <div className="flex items-center gap-2 flex-shrink-0">
+              {/* View Switch: Kanban ⟷ List */}
+              <div className="flex items-center rounded-lg border border-slate-200 bg-slate-100/80 p-0.5 text-xs font-semibold">
+                <button
+                  onClick={() => setCurrentView('kanban')}
+                  className={`flex items-center gap-1.5 rounded-md px-2.5 py-1 transition cursor-pointer ${
+                    currentView === 'kanban'
+                      ? 'bg-white text-slate-900 shadow-2xs font-bold'
+                      : 'text-slate-600 hover:text-slate-900'
+                  }`}
+                  title="Chế độ xem Bảng (Kanban View)"
+                >
+                  <Kanban className="h-3.5 w-3.5" />
+                  <span className="hidden sm:inline">Bảng</span>
+                </button>
+                <button
+                  onClick={() => setCurrentView('list')}
+                  className={`flex items-center gap-1.5 rounded-md px-2.5 py-1 transition cursor-pointer ${
+                    currentView === 'list'
+                      ? 'bg-white text-slate-900 shadow-2xs font-bold'
+                      : 'text-slate-600 hover:text-slate-900'
+                  }`}
+                  title="Chế độ xem Danh sách phẳng (List View)"
+                >
+                  <List className="h-3.5 w-3.5" />
+                  <span className="hidden sm:inline">Danh sách</span>
+                </button>
+              </div>
+
+              {/* Command Palette Button (Ctrl+K) */}
               <button
-                onClick={() => setQuickStartOpen(true)}
-                className="flex items-center gap-2 rounded-lg border border-slate-200 bg-white hover:bg-slate-50 px-2.5 py-1 text-xs text-slate-800 shadow-2xs transition cursor-pointer group"
-                title="Xem 4 bước khởi động nhanh (Quick Start Steps)"
+                onClick={() => setCommandPaletteOpen(true)}
+                className="hidden md:inline-flex items-center gap-1.5 rounded-lg border border-slate-200 bg-white hover:bg-slate-50 px-2.5 py-1 text-xs text-slate-600 shadow-2xs transition cursor-pointer"
+                title="Mở Command Palette (Ctrl + K)"
+              >
+                <Search className="h-3 w-3 text-slate-400" />
+                <span className="text-[10px] font-mono font-bold text-slate-500 bg-slate-100 border border-slate-200 rounded px-1">
+                  Ctrl K
+                </span>
+              </button>
+
+              {/* Product Walkthrough Tour Button */}
+              <button
+                onClick={() => setWalkthroughOpen(true)}
+                className="inline-flex items-center gap-1.5 rounded-lg border border-slate-200 bg-white hover:bg-slate-50 px-2.5 py-1 text-xs font-semibold text-slate-800 shadow-2xs transition cursor-pointer group"
+                title="Xem Tour hướng dẫn sử dụng (Product Walkthrough)"
               >
                 <div className="flex h-4 w-4 items-center justify-center rounded bg-[#D4FF00] text-slate-950 font-black text-[10px] border border-black/10">
                   ⚡
                 </div>
                 <span className="font-semibold text-slate-900 group-hover:text-slate-950">
-                  Khởi đầu nhanh:
+                  Tour hướng dẫn
                 </span>
-                <span className="rounded bg-slate-100 px-1.5 py-0.2 text-[10px] font-bold text-slate-700 font-mono">
-                  {quickStartDoneCount}/4 bước
-                </span>
-                <div className="w-12 h-1.5 bg-slate-200 rounded-full overflow-hidden hidden sm:block">
-                  <div
-                    className="h-full bg-slate-900 transition-all duration-300"
-                    style={{ width: `${(quickStartDoneCount / 4) * 100}%` }}
-                  />
-                </div>
-                <ChevronDown className="h-3 w-3 text-slate-400 group-hover:text-slate-600 transition" />
               </button>
             </div>
           )}
@@ -249,12 +298,14 @@ export default function Home() {
               </button>
             </div>
           </div>
+        ) : currentView === 'list' ? (
+          <ListView />
         ) : (
           <KanbanBoard />
         )}
       </main>
 
-      {/* Modals */}
+      {/* Modals & Overlays */}
       <AIBreakdownModal />
       <AINotesModal />
       <TaskDetailModal />
@@ -263,6 +314,8 @@ export default function Home() {
       <OnboardingModal />
       <InviteModal />
       <QuickStartSteps />
+      <CommandPalette />
+      <ProductWalkthrough />
     </div>
   );
 }

@@ -3,6 +3,7 @@ import {
   Workspace,
   Board,
   Task,
+  TaskComment,
   Note,
   TaskBreakdownResponse,
   NoteSummary,
@@ -167,6 +168,17 @@ class ApiClient {
     return this.request(`/api/tasks/${taskId}`, {
       method: 'DELETE',
     });
+  }
+
+  async addTaskComment(taskId: string, content: string): Promise<TaskComment> {
+    return this.request<TaskComment>(`/api/tasks/${taskId}/comments`, {
+      method: 'POST',
+      body: JSON.stringify({ content }),
+    });
+  }
+
+  async getTaskComments(taskId: string): Promise<TaskComment[]> {
+    return this.request<TaskComment[]>(`/api/tasks/${taskId}/comments`);
   }
 
   // Notes

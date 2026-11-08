@@ -4,7 +4,7 @@ from typing import List
 from fastapi import APIRouter, HTTPException, status, Depends
 from app.db.mongodb import db_manager
 from app.schemas.board import BoardCreate, BoardResponse, BoardColumn
-from app.schemas.task import TaskResponse, SubtaskItem
+from app.schemas.task import TaskResponse, SubtaskItem, CommentItem
 from app.api.auth import get_current_user
 
 router = APIRouter(prefix="/boards", tags=["Boards"])
@@ -38,6 +38,7 @@ async def get_board_tasks(board_id: str, current_user: dict = Depends(get_curren
     res = []
     for t in tasks:
         checklists = [SubtaskItem(**c) for c in t.get("checklists", [])]
+        comments = [CommentItem(**c) for c in t.get("comments", [])]
         res.append(TaskResponse(
             id=str(t["_id"]),
             board_id=t["board_id"],
@@ -51,6 +52,7 @@ async def get_board_tasks(board_id: str, current_user: dict = Depends(get_curren
             tags=t.get("tags", []),
             due_date=t.get("due_date"),
             checklists=checklists,
+            comments=comments,
             ai_generated=t.get("ai_generated", False),
             created_by=t.get("created_by"),
             created_at=t.get("created_at", ""),

@@ -175,3 +175,4 @@ export const FilterBar: React.FC = () => {
     </div>
   );
 };
+

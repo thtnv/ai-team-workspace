@@ -32,6 +32,7 @@ export const KanbanBoard: React.FC = () => {
     setPresenceUsers,
     setTaskLocked,
     setTaskUnlocked,
+    addTaskComment,
     currentUser,
     searchQuery,
     selectedPriority,
@@ -128,6 +129,12 @@ export const KanbanBoard: React.FC = () => {
       setTaskUnlocked(data.task_id);
     };
 
+    const handleCommentAdded = (data: { task_id: string; board_id: string; comment: any }) => {
+      if (data.board_id === currentBoard.id) {
+        addTaskComment(data.task_id, data.comment);
+      }
+    };
+
     socket.on('task:moved', handleRemoteTaskMoved);
     socket.on('task:created', handleRemoteTaskCreated);
     socket.on('task:updated', handleRemoteTaskUpdated);
@@ -135,6 +142,7 @@ export const KanbanBoard: React.FC = () => {
     socket.on('presence:sync', handlePresenceSync);
     socket.on('task:locked', handleTaskLocked);
     socket.on('task:unlocked', handleTaskUnlocked);
+    socket.on('task:comment_added', handleCommentAdded);
 
     return () => {
       socket.off('task:moved', handleRemoteTaskMoved);
@@ -144,6 +152,7 @@ export const KanbanBoard: React.FC = () => {
       socket.off('presence:sync', handlePresenceSync);
       socket.off('task:locked', handleTaskLocked);
       socket.off('task:unlocked', handleTaskUnlocked);
+      socket.off('task:comment_added', handleCommentAdded);
       socketService.leaveBoard(currentBoard.id);
     };
   }, [currentBoard?.id, currentUser]);

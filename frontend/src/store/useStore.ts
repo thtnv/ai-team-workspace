@@ -1,5 +1,5 @@
 import { create } from 'zustand';
-import { User, Workspace, Board, Task, Note, PresenceUser } from '@/types';
+import { User, Workspace, Board, Task, TaskComment, Note, PresenceUser } from '@/types';
 
 interface AppState {
   // Auth & Core Context
@@ -8,6 +8,9 @@ interface AppState {
   currentWorkspace: Workspace | null;
   boards: Board[];
   currentBoard: Board | null;
+
+  // View state: 'kanban' or 'list'
+  currentView: 'kanban' | 'list';
 
   // Board Data
   tasks: Task[];
@@ -25,6 +28,8 @@ interface AppState {
   isOnboardingOpen: boolean;
   isInviteModalOpen: boolean;
   isQuickStartOpen: boolean;
+  isCommandPaletteOpen: boolean;
+  isWalkthroughOpen: boolean;
 
   // Search & Filters state
   searchQuery: string;
@@ -66,6 +71,12 @@ interface AppState {
   setFilterMyTasksOnly: (enabled: boolean) => void;
   resetFilters: () => void;
 
+  // View action
+  setCurrentView: (view: 'kanban' | 'list') => void;
+
+  // Comments
+  addTaskComment: (taskId: string, comment: TaskComment) => void;
+
   // Modal actions
   setAIBreakdownOpen: (open: boolean) => void;
   setAINotesOpen: (open: boolean) => void;
@@ -75,6 +86,8 @@ interface AppState {
   setOnboardingOpen: (open: boolean) => void;
   setInviteModalOpen: (open: boolean) => void;
   setQuickStartOpen: (open: boolean) => void;
+  setCommandPaletteOpen: (open: boolean) => void;
+  setWalkthroughOpen: (open: boolean) => void;
 }
 
 export const useStore = create<AppState>((set, get) => ({
@@ -83,6 +96,8 @@ export const useStore = create<AppState>((set, get) => ({
   currentWorkspace: null,
   boards: [],
   currentBoard: null,
+
+  currentView: 'kanban',
 
   tasks: [],
   notes: [],
@@ -98,6 +113,8 @@ export const useStore = create<AppState>((set, get) => ({
   isOnboardingOpen: false,
   isInviteModalOpen: false,
   isQuickStartOpen: false,
+  isCommandPaletteOpen: false,
+  isWalkthroughOpen: false,
 
   searchQuery: '',
   selectedPriority: null,
@@ -193,6 +210,33 @@ export const useStore = create<AppState>((set, get) => ({
       filterMyTasksOnly: false,
     }),
 
+  setCurrentView: (view) => set({ currentView: view }),
+
+  addTaskComment: (taskId, comment) =>
+    set((state) => {
+      const updatedTasks = state.tasks.map((t) => {
+        if (t.id === taskId) {
+          const existing = t.comments || [];
+          if (existing.some((c) => c.id === comment.id)) return t;
+          return { ...t, comments: [...existing, comment] };
+        }
+        return t;
+      });
+
+      let updatedDetail = state.selectedTaskForDetail;
+      if (updatedDetail && updatedDetail.id === taskId) {
+        const existing = updatedDetail.comments || [];
+        if (!existing.some((c) => c.id === comment.id)) {
+          updatedDetail = { ...updatedDetail, comments: [...existing, comment] };
+        }
+      }
+
+      return {
+        tasks: updatedTasks,
+        selectedTaskForDetail: updatedDetail,
+      };
+    }),
+
   setAIBreakdownOpen: (open) => set({ isAIBreakdownOpen: open }),
   setAINotesOpen: (open) => set({ isAINotesOpen: open }),
   setCreateTaskOpen: (open, colId) =>
@@ -202,5 +246,7 @@ export const useStore = create<AppState>((set, get) => ({
   setOnboardingOpen: (open) => set({ isOnboardingOpen: open }),
   setInviteModalOpen: (open) => set({ isInviteModalOpen: open }),
   setQuickStartOpen: (open) => set({ isQuickStartOpen: open }),
+  setCommandPaletteOpen: (open) => set({ isCommandPaletteOpen: open }),
+  setWalkthroughOpen: (open) => set({ isWalkthroughOpen: open }),
 }));
 

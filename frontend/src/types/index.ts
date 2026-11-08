@@ -51,6 +51,16 @@ export interface Subtask {
   is_done: boolean;
 }
 
+export interface TaskComment {
+  id: string;
+  user_id: string;
+  user_name: string;
+  user_email?: string;
+  user_avatar?: string;
+  content: string;
+  created_at: string;
+}
+
 export interface Task {
   id: string;
   board_id: string;
@@ -64,6 +74,7 @@ export interface Task {
   tags: string[];
   due_date?: string | null;
   checklists: Subtask[];
+  comments?: TaskComment[];
   ai_generated?: boolean;
   created_by?: string;
   created_at: string;
