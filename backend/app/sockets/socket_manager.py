@@ -1,5 +1,5 @@
 import logging
-from typing import Dict, Any, Set
+from typing import Dict, Any, Set, List
 import socketio
 
 logger = logging.getLogger("syncpulse.sockets")
@@ -14,6 +14,32 @@ sio = socketio.AsyncServer(
 _active_board_presence: Dict[str, Dict[str, Dict[str, Any]]] = {}
 # Mapping sid -> set of board_ids joined
 _sid_to_boards: Dict[str, Set[str]] = {}
+
+
+def get_clean_board_presence(board_id: str) -> List[Dict[str, Any]]:
+    """Prune dead/ghost socket connections and deduplicate presence by user_id."""
+    if board_id not in _active_board_presence:
+        return []
+
+    # Get active live sockets in engine.io
+    active_engine_sids = set()
+    if hasattr(sio, 'eio') and hasattr(sio.eio, 'sockets'):
+        active_engine_sids = set(sio.eio.sockets.keys())
+
+    # Prune any stale sids
+    current_sids = list(_active_board_presence[board_id].keys())
+    for sid in current_sids:
+        if active_engine_sids and sid not in active_engine_sids:
+            logger.info(f"Pruning stale socket presence {sid} from board {board_id}")
+            del _active_board_presence[board_id][sid]
+
+    # Deduplicate by user_id (so 1 person with multiple tabs/reconnects only appears once)
+    unique_users: Dict[str, Dict[str, Any]] = {}
+    for sid, info in _active_board_presence[board_id].items():
+        uid = str(info.get("user_id") or sid)
+        unique_users[uid] = info
+
+    return list(unique_users.values())
 
 
 @sio.event
@@ -31,7 +57,7 @@ async def disconnect(sid):
         for board_id in boards:
             if board_id in _active_board_presence and sid in _active_board_presence[board_id]:
                 del _active_board_presence[board_id][sid]
-                active_users = list(_active_board_presence[board_id].values())
+                active_users = get_clean_board_presence(board_id)
                 await sio.emit(
                     "presence:sync",
                     {"board_id": board_id, "active_users": active_users},
@@ -58,17 +84,24 @@ async def join_board(sid, data: Dict[str, Any]):
     if board_id not in _active_board_presence:
         _active_board_presence[board_id] = {}
 
+    user_id = str(user.get("id") or sid)
+    
+    # If this user already had a previous sid registered, remove old sid
+    for existing_sid, info in list(_active_board_presence[board_id].items()):
+        if str(info.get("user_id")) == user_id and existing_sid != sid:
+            del _active_board_presence[board_id][existing_sid]
+
     user_info = {
         "sid": sid,
-        "user_id": user.get("id", sid),
+        "user_id": user_id,
         "name": user.get("name") or user.get("full_name") or f"Guest-{sid[:4]}",
         "email": user.get("email", ""),
         "avatar_url": user.get("avatar_url", "")
     }
     _active_board_presence[board_id][sid] = user_info
 
-    logger.info(f"User {user_info['name']} joined board {board_id}")
-    active_users = list(_active_board_presence[board_id].values())
+    logger.info(f"User {user_info['name']} ({user_id}) joined board {board_id}")
+    active_users = get_clean_board_presence(board_id)
     await sio.emit("presence:sync", {"board_id": board_id, "active_users": active_users}, room=room)
 
 
@@ -87,16 +120,12 @@ async def leave_board(sid, data: Dict[str, Any]):
 
     if board_id in _active_board_presence and sid in _active_board_presence[board_id]:
         del _active_board_presence[board_id][sid]
-        active_users = list(_active_board_presence[board_id].values())
+        active_users = get_clean_board_presence(board_id)
         await sio.emit("presence:sync", {"board_id": board_id, "active_users": active_users}, room=room)
 
 
 @sio.event
 async def move_task(sid, data: Dict[str, Any]):
-    """
-    Handle drag-and-drop card movement event.
-    Broadcasts 'task:moved' to all other peers in the room (skipping sender).
-    """
     board_id = data.get("board_id")
     task_id = data.get("task_id")
     source_col_id = data.get("source_col_id")
@@ -107,7 +136,6 @@ async def move_task(sid, data: Dict[str, Any]):
         return
 
     room = f"board_{board_id}"
-    # Broadcast to all clients in the board EXCEPT the sender (optimistic UI)
     await sio.emit(
         "task:moved",
         {
@@ -125,7 +153,6 @@ async def move_task(sid, data: Dict[str, Any]):
 
 @sio.event
 async def lock_task(sid, data: Dict[str, Any]):
-    """Visual task lock indicator when a member opens a task details modal."""
     board_id = data.get("board_id")
     task_id = data.get("task_id")
     user_name = data.get("user_name", "Someone")
@@ -140,7 +167,6 @@ async def lock_task(sid, data: Dict[str, Any]):
 
 @sio.event
 async def unlock_task(sid, data: Dict[str, Any]):
-    """Release visual task lock."""
     board_id = data.get("board_id")
     task_id = data.get("task_id")
     if board_id and task_id:
@@ -153,7 +179,5 @@ async def unlock_task(sid, data: Dict[str, Any]):
 
 
 async def broadcast_board_event(board_id: str, event_name: str, payload: Dict[str, Any], skip_sid: str = None):
-    """Helper to broadcast general events from REST API routes."""
     room = f"board_{board_id}"
     await sio.emit(event_name, payload, room=room, skip_sid=skip_sid)
-

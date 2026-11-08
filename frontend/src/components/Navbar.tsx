@@ -13,6 +13,7 @@ export const Navbar: React.FC = () => {
     currentWorkspace,
     currentBoard,
     activePresenceUsers,
+    setPresenceUsers,
     setAIBreakdownOpen,
     setAINotesOpen,
     setCreateTaskOpen,
@@ -27,9 +28,33 @@ export const Navbar: React.FC = () => {
     }
     api.setToken(null);
     setCurrentUser(null);
+    setPresenceUsers([]);
     setMenuOpen(false);
     setLoginModalOpen(true);
   };
+
+  // Deduplicate presence users by user_id
+  const uniquePresence = Array.from(
+    new Map(
+      activePresenceUsers
+        .filter((u) => u && u.user_id)
+        .map((u) => [u.user_id, u])
+    ).values()
+  );
+
+  const displayUsers =
+    uniquePresence.length > 0
+      ? uniquePresence
+      : currentUser
+      ? [
+          {
+            sid: 'me',
+            user_id: currentUser.id,
+            name: currentUser.full_name,
+            avatar_url: currentUser.avatar_url,
+          },
+        ]
+      : [];
 
   return (
     <header className="sticky top-0 z-40 w-full border-b border-slate-200 bg-white/95 backdrop-blur-md shadow-2xs">
@@ -62,7 +87,7 @@ export const Navbar: React.FC = () => {
           </div>
         </div>
 
-        {/* Center: Live Presence Avatars */}
+        {/* Center: Live Presence Avatars (Deduplicated) */}
         {currentUser && (
           <div className="flex items-center gap-2 bg-slate-100 border border-slate-200 rounded-full py-0.5 px-2.5 shadow-2xs">
             <span className="relative flex h-2 w-2">
@@ -70,15 +95,13 @@ export const Navbar: React.FC = () => {
               <span className="relative inline-flex rounded-full h-2 w-2 bg-emerald-500"></span>
             </span>
             <span className="text-[10px] font-bold text-slate-700 hidden sm:inline">
-              Online ({activePresenceUsers.length || 1})
+              Online ({displayUsers.length})
             </span>
 
             <div className="flex -space-x-1.5 overflow-hidden">
-              {(activePresenceUsers.length > 0 ? activePresenceUsers : [
-                { sid: '1', user_id: currentUser.id, name: currentUser.full_name, avatar_url: currentUser.avatar_url }
-              ]).map((u, i) => (
+              {displayUsers.map((u, i) => (
                 <div
-                  key={u.sid || i}
+                  key={u.user_id || u.sid || i}
                   title={u.name}
                   className="relative inline-block h-5 w-5 rounded-full ring-1 ring-white overflow-hidden bg-slate-200 shadow-2xs"
                 >
@@ -87,7 +110,7 @@ export const Navbar: React.FC = () => {
                     <img src={u.avatar_url} alt={u.name} className="h-full w-full object-cover" />
                   ) : (
                     <div className="flex h-full w-full items-center justify-center bg-[#D4FF00] text-[9px] font-bold text-slate-950">
-                      {u.name.charAt(0)}
+                      {u.name?.charAt(0) || 'U'}
                     </div>
                   )}
                 </div>
