@@ -11,13 +11,17 @@ import { AINotesModal } from '@/components/AINotesModal';
 import { TaskDetailModal } from '@/components/TaskDetailModal';
 import { CreateTaskModal } from '@/components/CreateTaskModal';
 import { LoginModal } from '@/components/LoginModal';
-import { Sparkles, ArrowUpRight, LogIn, ShieldAlert } from 'lucide-react';
+import { OnboardingModal } from '@/components/OnboardingModal';
+import { InviteModal } from '@/components/InviteModal';
+import { Sparkles, ArrowUpRight, LogIn, ShieldAlert, Rocket, Building2 } from 'lucide-react';
 
 export default function Home() {
   const {
     currentUser,
     setCurrentUser,
+    workspaces,
     setWorkspaces,
+    currentWorkspace,
     setCurrentWorkspace,
     setBoards,
     setCurrentBoard,
@@ -27,15 +31,43 @@ export default function Home() {
     setNotes,
     setAIBreakdownOpen,
     setLoginModalOpen,
+    setOnboardingOpen,
+    setInviteModalOpen,
   } = useStore();
 
   const [loading, setLoading] = useState(true);
 
   const loadWorkspaceData = async (user: any) => {
     try {
-      const workspaces = await api.getWorkspaces();
-      setWorkspaces(workspaces);
-      const primaryWorkspace = workspaces[0];
+      let wsList = await api.getWorkspaces();
+
+      // Check URL query parameters for ?invite= or ?join=
+      if (typeof window !== 'undefined') {
+        const urlParams = new URLSearchParams(window.location.search);
+        const inviteCode = urlParams.get('invite') || urlParams.get('join');
+        if (inviteCode) {
+          try {
+            await api.joinWorkspace(inviteCode);
+            wsList = await api.getWorkspaces();
+            window.history.replaceState({}, document.title, window.location.pathname);
+          } catch (e) {
+            console.warn('Could not join from invite URL param:', e);
+          }
+        }
+      }
+
+      setWorkspaces(wsList);
+
+      if (wsList.length === 0) {
+        // New user has no workspace yet -> Open Onboarding Wizard
+        setCurrentWorkspace(null);
+        setCurrentBoard(null);
+        setTasks([]);
+        setOnboardingOpen(true);
+        return;
+      }
+
+      const primaryWorkspace = wsList[0];
       setCurrentWorkspace(primaryWorkspace);
 
       if (primaryWorkspace) {
@@ -175,6 +207,25 @@ export default function Home() {
               </button>
             </div>
           </div>
+        ) : !currentWorkspace ? (
+          <div className="flex flex-1 items-center justify-center p-6">
+            <div className="flex flex-col items-center text-center max-w-md bg-white border border-slate-200 rounded-2xl p-8 shadow-sm">
+              <div className="flex h-12 w-12 items-center justify-center rounded-2xl bg-[#D4FF00] text-slate-950 font-black text-xl mb-4 border border-black/10">
+                <Building2 className="h-6 w-6" />
+              </div>
+              <h2 className="text-lg font-bold text-slate-900 mb-2">Chưa có Không gian làm việc</h2>
+              <p className="text-xs text-slate-500 leading-relaxed mb-6">
+                Bạn chưa tham gia không gian làm việc nào. Hãy khởi tạo Nhóm mới nếu bạn là Nhóm trưởng, hoặc gia nhập nhóm bằng Mã mời.
+              </p>
+              <button
+                onClick={() => setOnboardingOpen(true)}
+                className="flex items-center gap-2 rounded-xl bg-slate-900 px-6 py-2.5 text-xs font-bold text-white hover:bg-slate-800 transition cursor-pointer shadow-xs"
+              >
+                <Rocket className="h-4 w-4 text-[#D4FF00]" />
+                <span>Thiết lập Không gian làm việc</span>
+              </button>
+            </div>
+          </div>
         ) : (
           <KanbanBoard />
         )}
@@ -186,6 +237,8 @@ export default function Home() {
       <TaskDetailModal />
       <CreateTaskModal />
       <LoginModal />
+      <OnboardingModal />
+      <InviteModal />
     </div>
   );
 }

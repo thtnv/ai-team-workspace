@@ -4,7 +4,17 @@ import React, { useState } from 'react';
 import { useStore } from '@/store/useStore';
 import { api } from '@/lib/api';
 import { socketService } from '@/lib/socket';
-import { Sparkles, FileText, Plus, ChevronDown, LogOut, LogIn } from 'lucide-react';
+import {
+  Sparkles,
+  FileText,
+  Plus,
+  ChevronDown,
+  LogOut,
+  LogIn,
+  UserPlus,
+  Building2,
+  Users,
+} from 'lucide-react';
 
 export const Navbar: React.FC = () => {
   const {
@@ -18,6 +28,8 @@ export const Navbar: React.FC = () => {
     setAINotesOpen,
     setCreateTaskOpen,
     setLoginModalOpen,
+    setOnboardingOpen,
+    setInviteModalOpen,
   } = useStore();
 
   const [menuOpen, setMenuOpen] = useState(false);
@@ -77,12 +89,17 @@ export const Navbar: React.FC = () => {
 
           {/* Current Board & Workspace info */}
           <div className="hidden md:flex items-center gap-1.5 text-xs">
-            <span className="rounded-md bg-slate-100 border border-slate-200 px-2 py-0.5 text-[11px] font-semibold text-slate-700 truncate max-w-[140px]">
-              {currentWorkspace?.name || 'Workspace'}
-            </span>
+            <button
+              onClick={() => setOnboardingOpen(true)}
+              className="rounded-md bg-slate-100 hover:bg-slate-200 border border-slate-200 px-2 py-0.5 text-[11px] font-semibold text-slate-700 truncate max-w-[150px] transition cursor-pointer flex items-center gap-1"
+              title="Nhấn để đổi hoặc tạo Không gian làm việc mới"
+            >
+              <Building2 className="h-3 w-3 text-slate-500" />
+              <span>{currentWorkspace?.name || 'Workspace'}</span>
+            </button>
             <span className="text-slate-400">/</span>
             <span className="text-xs font-bold text-slate-800 truncate max-w-[180px]">
-              {currentBoard?.title || 'Sprint 24'}
+              {currentBoard?.title || 'Sprint 1'}
             </span>
           </div>
         </div>
@@ -152,6 +169,16 @@ export const Navbar: React.FC = () => {
                 <span className="hidden lg:inline">+ Task</span>
               </button>
 
+              {/* Invite Members Button */}
+              <button
+                onClick={() => setInviteModalOpen(true)}
+                className="flex items-center gap-1 rounded-lg border border-slate-300 bg-white px-2.5 py-1.5 text-xs font-semibold text-slate-700 transition hover:bg-slate-100 hover:text-slate-900 cursor-pointer shadow-2xs"
+                title="Mời thành viên vào Không gian làm việc"
+              >
+                <UserPlus className="h-3.5 w-3.5 text-slate-600" />
+                <span className="hidden md:inline">Mời</span>
+              </button>
+
               <div className="h-4 w-px bg-slate-200" />
             </>
           )}
@@ -182,11 +209,35 @@ export const Navbar: React.FC = () => {
 
               {/* Dropdown Menu */}
               {menuOpen && (
-                <div className="absolute right-0 mt-2 w-52 rounded-xl border border-slate-200 bg-white p-2 shadow-xl z-50">
+                <div className="absolute right-0 mt-2 w-56 rounded-xl border border-slate-200 bg-white p-2 shadow-xl z-50">
                   <div className="px-2 py-1.5 border-b border-slate-100">
                     <p className="text-xs font-bold text-slate-900 truncate">{currentUser.full_name}</p>
                     <p className="text-[10px] text-slate-500 truncate">{currentUser.email}</p>
                   </div>
+                  
+                  <div className="py-1 border-b border-slate-100">
+                    <button
+                      onClick={() => {
+                        setMenuOpen(false);
+                        setInviteModalOpen(true);
+                      }}
+                      className="w-full flex items-center gap-2 rounded-lg px-2 py-1.5 text-xs font-medium text-slate-700 hover:bg-slate-100 transition cursor-pointer"
+                    >
+                      <UserPlus className="h-3.5 w-3.5 text-slate-500" />
+                      <span>Mời thành viên</span>
+                    </button>
+                    <button
+                      onClick={() => {
+                        setMenuOpen(false);
+                        setOnboardingOpen(true);
+                      }}
+                      className="w-full flex items-center gap-2 rounded-lg px-2 py-1.5 text-xs font-medium text-slate-700 hover:bg-slate-100 transition cursor-pointer"
+                    >
+                      <Building2 className="h-3.5 w-3.5 text-slate-500" />
+                      <span>Đổi / Tạo Nhóm mới</span>
+                    </button>
+                  </div>
+
                   <button
                     onClick={handleLogout}
                     className="w-full mt-1 flex items-center gap-2 rounded-lg px-2 py-1.5 text-xs font-semibold text-rose-600 hover:bg-rose-50 transition cursor-pointer"

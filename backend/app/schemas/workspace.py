@@ -16,6 +16,21 @@ class WorkspaceCreate(BaseModel):
     description: Optional[str] = ""
 
 
+class WorkspaceOnboardingCreate(BaseModel):
+    workspace_name: str = Field(..., min_length=2, max_length=100)
+    board_title: Optional[str] = "Sprint 1 - Khởi động dự án"
+    description: Optional[str] = ""
+
+
+class WorkspaceJoinRequest(BaseModel):
+    invite_code: str = Field(..., min_length=2)
+
+
+class WorkspaceInviteRequest(BaseModel):
+    email: str = Field(..., min_length=3)
+    role: Optional[str] = "member"
+
+
 class WorkspaceResponse(BaseSchema):
     id: str
     name: str

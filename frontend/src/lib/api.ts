@@ -91,6 +91,44 @@ class ApiClient {
     return this.request<Workspace[]>('/api/workspaces');
   }
 
+  async createOnboardingWorkspace(
+    workspace_name: string,
+    board_title?: string,
+    description?: string
+  ): Promise<Workspace> {
+    return this.request<Workspace>('/api/workspaces/onboarding', {
+      method: 'POST',
+      body: JSON.stringify({ workspace_name, board_title, description }),
+    });
+  }
+
+  async joinWorkspace(invite_code: string): Promise<Workspace> {
+    return this.request<Workspace>('/api/workspaces/join', {
+      method: 'POST',
+      body: JSON.stringify({ invite_code }),
+    });
+  }
+
+  async joinDemoWorkspace(): Promise<Workspace> {
+    return this.request<Workspace>('/api/workspaces/join-demo', {
+      method: 'POST',
+    });
+  }
+
+  async inviteMember(
+    workspaceId: string,
+    email: string,
+    role: string = 'member'
+  ): Promise<{ message: string; workspace_id: string; members: any[] }> {
+    return this.request<{ message: string; workspace_id: string; members: any[] }>(
+      `/api/workspaces/${workspaceId}/invite`,
+      {
+        method: 'POST',
+        body: JSON.stringify({ email, role }),
+      }
+    );
+  }
+
   async getWorkspaceBoards(workspaceId: string): Promise<Board[]> {
     return this.request<Board[]>(`/api/workspaces/${workspaceId}/boards`);
   }

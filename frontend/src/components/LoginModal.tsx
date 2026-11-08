@@ -18,6 +18,7 @@ export const LoginModal: React.FC = () => {
     setCurrentBoard,
     setTasks,
     setNotes,
+    setOnboardingOpen,
   } = useStore();
 
   const [mode, setMode] = useState<'login' | 'register'>('login');
@@ -33,6 +34,16 @@ export const LoginModal: React.FC = () => {
     try {
       const workspaces = await api.getWorkspaces();
       setWorkspaces(workspaces);
+
+      if (workspaces.length === 0) {
+        // User has no workspace -> Open onboarding modal
+        setCurrentWorkspace(null);
+        setCurrentBoard(null);
+        setTasks([]);
+        setOnboardingOpen(true);
+        return;
+      }
+
       const ws = workspaces[0];
       setCurrentWorkspace(ws);
       if (ws) {

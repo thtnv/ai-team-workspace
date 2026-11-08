@@ -45,6 +45,23 @@ async def register(req: UserRegister):
     }
     await users_col.insert_one(new_user)
     
+    # Auto-link any workspaces that pre-invited this email
+    workspaces_col = db_manager.get_collection("workspaces")
+    cursor = workspaces_col.find({"members.email": req.email.lower()})
+    invited_workspaces = await cursor.to_list(100)
+    for ws in invited_workspaces:
+        updated_members = []
+        for m in ws.get("members", []):
+            if m.get("email") == req.email.lower():
+                m["user_id"] = user_id
+                m["full_name"] = req.full_name
+                m["avatar_url"] = new_user["avatar_url"]
+            updated_members.append(m)
+        await workspaces_col.update_one(
+            {"_id": ws["_id"]},
+            {"$set": {"members": updated_members, "updated_at": now_iso}}
+        )
+
     token = create_access_token(subject=user_id)
     return Token(
         access_token=token,

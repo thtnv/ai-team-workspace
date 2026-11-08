@@ -7,6 +7,12 @@
 
 ## 🌟 Tính Năng Nổi Bật (Key Features)
 
+- 👑 **Quy Trình Onboarding & Phân Quyền Nhóm Trưởng (Chuẩn Linear & Plane.so):**
+  - **Dành cho Nhóm trưởng (Team Leader):** Đăng ký tài khoản xong, hệ thống hướng dẫn thiết lập ngay Tên Nhóm / Công ty và khởi tạo Bảng Kanban khởi đầu với 4 cột chuẩn.
+  - **Mời thành viên đa kênh:** Nhóm trưởng có thể mời qua **Mã mời (Workspace Code)**, **Đường link mời trực tiếp 1-click** hoặc **Mời trực tiếp qua Email**.
+  - **Tự động liên kết (Auto-linking):** Khi thành viên được mời đăng ký tài khoản với email tương ứng, hệ thống tự động đưa họ vào đúng Nhóm làm việc.
+  - **Chế độ Reviewer/Demo tiện lợi:** Người kiểm thử hoặc nhà tuyển dụng có thể bấm 1 nút để khám phá ngay dữ liệu mẫu (Sprint 24) mà không cần cấu hình từ đầu.
+
 - 🚀 **Bảng Kanban Thời Gian Thực (Multi-user Real-time Collaboration):**
   - Kéo thả thẻ mượt mà giữa các cột (*To Do, In Progress, In Review, Done*) sử dụng `@dnd-kit/core` & `@dnd-kit/sortable`.
   - **Optimistic UI Updates:** Trạng thái giao diện phản hồi tức thì (0ms latency), tự động rollback nếu gặp sự cố mạng.

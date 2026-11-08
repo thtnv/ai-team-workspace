@@ -22,6 +22,8 @@ interface AppState {
   selectedColumnForCreate: string | null;
   selectedTaskForDetail: Task | null;
   isLoginModalOpen: boolean;
+  isOnboardingOpen: boolean;
+  isInviteModalOpen: boolean;
 
   // Actions
   setCurrentUser: (user: User | null) => void;
@@ -56,6 +58,8 @@ interface AppState {
   setCreateTaskOpen: (open: boolean, colId?: string) => void;
   setSelectedTaskForDetail: (task: Task | null) => void;
   setLoginModalOpen: (open: boolean) => void;
+  setOnboardingOpen: (open: boolean) => void;
+  setInviteModalOpen: (open: boolean) => void;
 }
 
 export const useStore = create<AppState>((set, get) => ({
@@ -76,6 +80,8 @@ export const useStore = create<AppState>((set, get) => ({
   selectedColumnForCreate: null,
   selectedTaskForDetail: null,
   isLoginModalOpen: false,
+  isOnboardingOpen: false,
+  isInviteModalOpen: false,
 
   setCurrentUser: (user) => set({ currentUser: user }),
   setWorkspaces: (workspaces) => set({ workspaces }),
@@ -159,5 +165,7 @@ export const useStore = create<AppState>((set, get) => ({
     set({ isCreateTaskOpen: open, selectedColumnForCreate: colId || null }),
   setSelectedTaskForDetail: (task) => set({ selectedTaskForDetail: task }),
   setLoginModalOpen: (open) => set({ isLoginModalOpen: open }),
+  setOnboardingOpen: (open) => set({ isOnboardingOpen: open }),
+  setInviteModalOpen: (open) => set({ isInviteModalOpen: open }),
 }));
 
