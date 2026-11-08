@@ -1,0 +1,64 @@
+from typing import List, Optional
+from pydantic import BaseModel, Field
+from app.schemas.common import BaseSchema
+
+
+class SubtaskItem(BaseModel):
+    id: str
+    title: str
+    is_done: bool = False
+
+
+class TaskCreate(BaseModel):
+    board_id: str
+    workspace_id: str
+    column_id: str
+    title: str = Field(..., min_length=1, max_length=200)
+    description: Optional[str] = ""
+    priority: str = "medium"  # "low" | "medium" | "high" | "urgent"
+    order: Optional[float] = 1000.0
+    assignees: List[str] = []
+    tags: List[str] = []
+    due_date: Optional[str] = None
+    checklists: List[SubtaskItem] = []
+    ai_generated: bool = False
+
+
+class TaskUpdate(BaseModel):
+    column_id: Optional[str] = None
+    title: Optional[str] = None
+    description: Optional[str] = None
+    priority: Optional[str] = None
+    order: Optional[float] = None
+    assignees: Optional[List[str]] = None
+    tags: Optional[List[str]] = None
+    due_date: Optional[str] = None
+    checklists: Optional[List[SubtaskItem]] = None
+
+
+class TaskMoveRequest(BaseModel):
+    task_id: str
+    board_id: str
+    source_col_id: str
+    dest_col_id: str
+    new_order: float
+
+
+class TaskResponse(BaseSchema):
+    id: str
+    board_id: str
+    workspace_id: str
+    column_id: str
+    title: str
+    description: Optional[str] = ""
+    priority: str
+    order: float
+    assignees: List[str] = []
+    tags: List[str] = []
+    due_date: Optional[str] = None
+    checklists: List[SubtaskItem] = []
+    ai_generated: bool = False
+    created_by: Optional[str] = None
+    created_at: str
+    updated_at: str
+
