@@ -6,6 +6,8 @@ import { api } from '@/lib/api';
 import { socketService } from '@/lib/socket';
 import { Navbar } from '@/components/Navbar';
 import { KanbanBoard } from '@/components/KanbanBoard';
+import { FilterBar } from '@/components/FilterBar';
+import { QuickStartSteps } from '@/components/QuickStartSteps';
 import { AIBreakdownModal } from '@/components/AIBreakdownModal';
 import { AINotesModal } from '@/components/AINotesModal';
 import { TaskDetailModal } from '@/components/TaskDetailModal';
@@ -13,7 +15,7 @@ import { CreateTaskModal } from '@/components/CreateTaskModal';
 import { LoginModal } from '@/components/LoginModal';
 import { OnboardingModal } from '@/components/OnboardingModal';
 import { InviteModal } from '@/components/InviteModal';
-import { Sparkles, ArrowUpRight, LogIn, ShieldAlert, Rocket, Building2 } from 'lucide-react';
+import { Sparkles, ArrowUpRight, LogIn, ShieldAlert, Rocket, Building2, ChevronDown } from 'lucide-react';
 
 export default function Home() {
   const {
@@ -28,11 +30,13 @@ export default function Home() {
     currentBoard,
     tasks,
     setTasks,
+    notes,
     setNotes,
     setAIBreakdownOpen,
     setLoginModalOpen,
     setOnboardingOpen,
     setInviteModalOpen,
+    setQuickStartOpen,
   } = useStore();
 
   const [loading, setLoading] = useState(true);
@@ -121,11 +125,18 @@ export default function Home() {
   const urgentTasks = tasks.filter((t) => t.priority === 'urgent' && t.column_id !== 'col-done').length;
   const completionPercent = totalTasks > 0 ? Math.round((doneTasks / totalTasks) * 100) : 0;
 
+  // Quick Start 4 Steps calculation (Linear / Plane onboarding)
+  const isStep1Done = Boolean(currentWorkspace && currentWorkspace.members && currentWorkspace.members.length >= 1);
+  const isStep2Done = tasks.some((t) => t.ai_generated);
+  const isStep3Done = tasks.some((t) => t.column_id === 'col-done');
+  const isStep4Done = notes.length > 0;
+  const quickStartDoneCount = [isStep1Done, isStep2Done, isStep3Done, isStep4Done].filter(Boolean).length;
+
   return (
     <div className="h-screen w-screen flex flex-col overflow-hidden bg-slate-50 text-slate-900 selection:bg-[#D4FF00] selection:text-slate-950">
       <Navbar />
 
-      {/* Compact Subheader: Board KPI Metrics & AI Banner */}
+      {/* Compact Subheader: Board KPI Metrics & Quick Start Guide */}
       <div className="border-b border-slate-200 bg-white/70 backdrop-blur-xs px-4 py-2 flex-shrink-0">
         <div className="flex items-center justify-between gap-3">
           {/* Board Title & Progress */}
@@ -158,26 +169,38 @@ export default function Home() {
             )}
           </div>
 
-          {/* Quick AI Spotlight Pill */}
+          {/* Quick Start Guide Steps (Replaces old 'Gõ Đăng nhập Google' pill) */}
           {currentUser && (
             <div className="flex items-center gap-2 flex-shrink-0">
               <button
-                onClick={() => setAIBreakdownOpen(true)}
-                className="flex items-center gap-1.5 rounded-lg border border-slate-300 bg-white px-2.5 py-1 text-xs text-slate-700 hover:border-[#D4FF00] hover:shadow-2xs transition cursor-pointer"
+                onClick={() => setQuickStartOpen(true)}
+                className="flex items-center gap-2 rounded-lg border border-slate-200 bg-white hover:bg-slate-50 px-2.5 py-1 text-xs text-slate-800 shadow-2xs transition cursor-pointer group"
+                title="Xem 4 bước khởi động nhanh (Quick Start Steps)"
               >
-                <div className="flex h-4 w-4 items-center justify-center rounded bg-[#D4FF00] text-slate-950 font-bold">
-                  <Sparkles className="h-2.5 w-2.5" />
+                <div className="flex h-4 w-4 items-center justify-center rounded bg-[#D4FF00] text-slate-950 font-black text-[10px] border border-black/10">
+                  ⚡
                 </div>
-                <span className="hidden md:inline font-medium">
-                  Gõ <strong className="text-slate-900">&quot;Đăng nhập Google&quot;</strong> để AI phân rã
+                <span className="font-semibold text-slate-900 group-hover:text-slate-950">
+                  Khởi đầu nhanh:
                 </span>
-                <span className="md:hidden font-medium">AI Prompt</span>
-                <ArrowUpRight className="h-3 w-3 text-slate-400" />
+                <span className="rounded bg-slate-100 px-1.5 py-0.2 text-[10px] font-bold text-slate-700 font-mono">
+                  {quickStartDoneCount}/4 bước
+                </span>
+                <div className="w-12 h-1.5 bg-slate-200 rounded-full overflow-hidden hidden sm:block">
+                  <div
+                    className="h-full bg-slate-900 transition-all duration-300"
+                    style={{ width: `${(quickStartDoneCount / 4) * 100}%` }}
+                  />
+                </div>
+                <ChevronDown className="h-3 w-3 text-slate-400 group-hover:text-slate-600 transition" />
               </button>
             </div>
           )}
         </div>
       </div>
+
+      {/* Search & Multi-Filter Bar */}
+      {currentUser && currentWorkspace && <FilterBar />}
 
       {/* Main Board Content - Flex 1 & Zero Overflow for Body */}
       <main className="flex-1 min-h-0 flex flex-col overflow-hidden">
@@ -239,6 +262,7 @@ export default function Home() {
       <LoginModal />
       <OnboardingModal />
       <InviteModal />
+      <QuickStartSteps />
     </div>
   );
 }

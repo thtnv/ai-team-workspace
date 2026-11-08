@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useEffect, useState } from 'react';
+import React, { useEffect, useState, useMemo } from 'react';
 import {
   DndContext,
   DragEndEvent,
@@ -33,9 +33,37 @@ export const KanbanBoard: React.FC = () => {
     setTaskLocked,
     setTaskUnlocked,
     currentUser,
+    searchQuery,
+    selectedPriority,
+    selectedTag,
+    filterMyTasksOnly,
   } = useStore();
 
   const [activeTask, setActiveTask] = useState<Task | null>(null);
+
+  // Filter tasks based on Search Keyword, Priority, Tag, and My Tasks Only
+  const filteredTasks = useMemo(() => {
+    return tasks.filter((task) => {
+      if (searchQuery && searchQuery.trim()) {
+        const q = searchQuery.toLowerCase().trim();
+        const inTitle = task.title.toLowerCase().includes(q);
+        const inDesc = task.description?.toLowerCase().includes(q);
+        const inTags = task.tags?.some((t) => t.toLowerCase().includes(q));
+        const inChecklist = task.checklists?.some((c) => c.title.toLowerCase().includes(q));
+        if (!inTitle && !inDesc && !inTags && !inChecklist) return false;
+      }
+      if (selectedPriority && task.priority !== selectedPriority) {
+        return false;
+      }
+      if (selectedTag && !task.tags?.map((t) => t.toLowerCase()).includes(selectedTag.toLowerCase())) {
+        return false;
+      }
+      if (filterMyTasksOnly && currentUser && !task.assignees?.includes(currentUser.id)) {
+        return false;
+      }
+      return true;
+    });
+  }, [tasks, searchQuery, selectedPriority, selectedTag, filterMyTasksOnly, currentUser]);
 
   const sensors = useSensors(
     useSensor(PointerSensor, {
@@ -229,7 +257,7 @@ export const KanbanBoard: React.FC = () => {
         {/* Responsive Grid with 4 equal columns fitting 100% of width, NO horizontal scroll */}
         <div className="grid grid-cols-4 gap-3 h-full min-h-0 w-full items-stretch">
           {columns.map((column) => {
-            const columnTasks = tasks
+            const columnTasks = filteredTasks
               .filter((t) => t.column_id === column.id)
               .sort((a, b) => a.order - b.order);
 

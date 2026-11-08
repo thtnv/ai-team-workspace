@@ -24,6 +24,13 @@ interface AppState {
   isLoginModalOpen: boolean;
   isOnboardingOpen: boolean;
   isInviteModalOpen: boolean;
+  isQuickStartOpen: boolean;
+
+  // Search & Filters state
+  searchQuery: string;
+  selectedPriority: string | null;
+  selectedTag: string | null;
+  filterMyTasksOnly: boolean;
 
   // Actions
   setCurrentUser: (user: User | null) => void;
@@ -52,6 +59,13 @@ interface AppState {
   updateNoteInStore: (note: Note) => void;
   deleteNoteInStore: (noteId: string) => void;
 
+  // Search & Filter actions
+  setSearchQuery: (query: string) => void;
+  setSelectedPriority: (priority: string | null) => void;
+  setSelectedTag: (tag: string | null) => void;
+  setFilterMyTasksOnly: (enabled: boolean) => void;
+  resetFilters: () => void;
+
   // Modal actions
   setAIBreakdownOpen: (open: boolean) => void;
   setAINotesOpen: (open: boolean) => void;
@@ -60,6 +74,7 @@ interface AppState {
   setLoginModalOpen: (open: boolean) => void;
   setOnboardingOpen: (open: boolean) => void;
   setInviteModalOpen: (open: boolean) => void;
+  setQuickStartOpen: (open: boolean) => void;
 }
 
 export const useStore = create<AppState>((set, get) => ({
@@ -82,6 +97,12 @@ export const useStore = create<AppState>((set, get) => ({
   isLoginModalOpen: false,
   isOnboardingOpen: false,
   isInviteModalOpen: false,
+  isQuickStartOpen: false,
+
+  searchQuery: '',
+  selectedPriority: null,
+  selectedTag: null,
+  filterMyTasksOnly: false,
 
   setCurrentUser: (user) => set({ currentUser: user }),
   setWorkspaces: (workspaces) => set({ workspaces }),
@@ -159,6 +180,19 @@ export const useStore = create<AppState>((set, get) => ({
       notes: state.notes.filter((n) => n.id !== noteId),
     })),
 
+  // Search & Filter actions
+  setSearchQuery: (query) => set({ searchQuery: query }),
+  setSelectedPriority: (priority) => set({ selectedPriority: priority }),
+  setSelectedTag: (tag) => set({ selectedTag: tag }),
+  setFilterMyTasksOnly: (enabled) => set({ filterMyTasksOnly: enabled }),
+  resetFilters: () =>
+    set({
+      searchQuery: '',
+      selectedPriority: null,
+      selectedTag: null,
+      filterMyTasksOnly: false,
+    }),
+
   setAIBreakdownOpen: (open) => set({ isAIBreakdownOpen: open }),
   setAINotesOpen: (open) => set({ isAINotesOpen: open }),
   setCreateTaskOpen: (open, colId) =>
@@ -167,5 +201,6 @@ export const useStore = create<AppState>((set, get) => ({
   setLoginModalOpen: (open) => set({ isLoginModalOpen: open }),
   setOnboardingOpen: (open) => set({ isOnboardingOpen: open }),
   setInviteModalOpen: (open) => set({ isInviteModalOpen: open }),
+  setQuickStartOpen: (open) => set({ isQuickStartOpen: open }),
 }));
 
