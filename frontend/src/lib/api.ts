@@ -192,6 +192,51 @@ class ApiClient {
     );
   }
 
+  async updateWorkspace(
+    workspaceId: string,
+    updates: { name?: string; description?: string }
+  ): Promise<Workspace> {
+    return this.request<Workspace>(`/api/workspaces/${workspaceId}`, {
+      method: 'PUT',
+      body: JSON.stringify(updates),
+    });
+  }
+
+  async updateMemberRole(
+    workspaceId: string,
+    userId: string,
+    role: 'admin' | 'member' | 'viewer'
+  ): Promise<Workspace> {
+    return this.request<Workspace>(`/api/workspaces/${workspaceId}/members/${userId}/role`, {
+      method: 'PUT',
+      body: JSON.stringify({ role }),
+    });
+  }
+
+  async removeMember(workspaceId: string, userId: string): Promise<Workspace> {
+    return this.request<Workspace>(`/api/workspaces/${workspaceId}/members/${userId}`, {
+      method: 'DELETE',
+    });
+  }
+
+  async resetInviteCode(workspaceId: string): Promise<{ message: string; new_invite_code: string }> {
+    return this.request<{ message: string; new_invite_code: string }>(
+      `/api/workspaces/${workspaceId}/reset-invite-code`,
+      { method: 'POST' }
+    );
+  }
+
+  async getWorkspaceStats(workspaceId: string): Promise<{
+    total_tasks: number;
+    completed_tasks: number;
+    total_boards: number;
+    total_members: number;
+    total_notes: number;
+    ai_tasks_count: number;
+  }> {
+    return this.request(`/api/workspaces/${workspaceId}/stats`);
+  }
+
   async getWorkspaceBoards(workspaceId: string): Promise<Board[]> {
     return this.request<Board[]>(`/api/workspaces/${workspaceId}/boards`);
   }

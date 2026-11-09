@@ -30,6 +30,7 @@ interface AppState {
   isQuickStartOpen: boolean;
   isCommandPaletteOpen: boolean;
   isWalkthroughOpen: boolean;
+  isWorkspaceSettingsOpen: boolean;
 
   // Search & Filters state
   searchQuery: string;
@@ -88,6 +89,8 @@ interface AppState {
   setQuickStartOpen: (open: boolean) => void;
   setCommandPaletteOpen: (open: boolean) => void;
   setWalkthroughOpen: (open: boolean) => void;
+  setWorkspaceSettingsOpen: (open: boolean) => void;
+  updateWorkspaceInStore: (workspace: Workspace) => void;
 }
 
 export const useStore = create<AppState>((set, get) => ({
@@ -115,6 +118,7 @@ export const useStore = create<AppState>((set, get) => ({
   isQuickStartOpen: false,
   isCommandPaletteOpen: false,
   isWalkthroughOpen: false,
+  isWorkspaceSettingsOpen: false,
 
   searchQuery: '',
   selectedPriority: null,
@@ -248,5 +252,12 @@ export const useStore = create<AppState>((set, get) => ({
   setQuickStartOpen: (open) => set({ isQuickStartOpen: open }),
   setCommandPaletteOpen: (open) => set({ isCommandPaletteOpen: open }),
   setWalkthroughOpen: (open) => set({ isWalkthroughOpen: open }),
+  setWorkspaceSettingsOpen: (open) => set({ isWorkspaceSettingsOpen: open }),
+  updateWorkspaceInStore: (workspace) =>
+    set((state) => ({
+      currentWorkspace:
+        state.currentWorkspace?.id === workspace.id ? workspace : state.currentWorkspace,
+      workspaces: state.workspaces.map((w) => (w.id === workspace.id ? workspace : w)),
+    })),
 }));
 

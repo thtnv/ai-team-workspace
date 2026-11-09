@@ -10,6 +10,9 @@ from app.schemas.workspace import (
     WorkspaceOnboardingCreate,
     WorkspaceJoinRequest,
     WorkspaceInviteRequest,
+    WorkspaceUpdate,
+    WorkspaceMemberRoleUpdate,
+    WorkspaceStatsResponse,
 )
 from app.schemas.board import BoardResponse
 from app.api.auth import get_current_user
@@ -275,4 +278,192 @@ async def get_workspace_boards(workspace_id: str, current_user: dict = Depends(g
             updated_at=b.get("updated_at", "")
         ))
     return res
+
+
+@router.put("/{workspace_id}", response_model=WorkspaceResponse)
+async def update_workspace(workspace_id: str, req: WorkspaceUpdate, current_user: dict = Depends(get_current_user)):
+    user_id = str(current_user["_id"])
+    workspaces_col = db_manager.get_collection("workspaces")
+
+    ws = await workspaces_col.find_one({"_id": workspace_id})
+    if not ws:
+        raise HTTPException(status_code=404, detail="Không tìm thấy không gian làm việc.")
+
+    members = ws.get("members", [])
+    caller = next((m for m in members if m.get("user_id") == user_id), None)
+    if not caller or (caller.get("role") not in ["admin", "owner"] and str(ws.get("owner_id")) != user_id):
+        raise HTTPException(status_code=403, detail="Chỉ Quản trị viên (Admin) hoặc Trưởng nhóm mới có quyền chỉnh sửa Không gian.")
+
+    updates = {}
+    if req.name is not None and req.name.strip():
+        updates["name"] = req.name.strip()
+    if req.description is not None:
+        updates["description"] = req.description.strip()
+
+    updates["updated_at"] = datetime.now(timezone.utc).isoformat()
+    await workspaces_col.update_one({"_id": workspace_id}, {"$set": updates})
+
+    updated_ws = await workspaces_col.find_one({"_id": workspace_id})
+    return WorkspaceResponse(
+        id=str(updated_ws["_id"]),
+        name=updated_ws["name"],
+        slug=updated_ws.get("slug", ""),
+        description=updated_ws.get("description", ""),
+        owner_id=str(updated_ws.get("owner_id", user_id)),
+        members=[WorkspaceMemberSchema(**m) for m in updated_ws.get("members", [])],
+        created_at=updated_ws.get("created_at", ""),
+        updated_at=updated_ws.get("updated_at", "")
+    )
+
+
+@router.put("/{workspace_id}/members/{target_user_id}/role", response_model=WorkspaceResponse)
+async def update_member_role(
+    workspace_id: str,
+    target_user_id: str,
+    req: WorkspaceMemberRoleUpdate,
+    current_user: dict = Depends(get_current_user)
+):
+    user_id = str(current_user["_id"])
+    workspaces_col = db_manager.get_collection("workspaces")
+
+    ws = await workspaces_col.find_one({"_id": workspace_id})
+    if not ws:
+        raise HTTPException(status_code=404, detail="Không tìm thấy không gian làm việc.")
+
+    members = ws.get("members", [])
+    caller = next((m for m in members if m.get("user_id") == user_id), None)
+    if not caller or (caller.get("role") not in ["admin", "owner"] and str(ws.get("owner_id")) != user_id):
+        raise HTTPException(status_code=403, detail="Bạn không có quyền thay đổi vai trò thành viên.")
+
+    if target_user_id == str(ws.get("owner_id")) and req.role != "admin":
+        raise HTTPException(status_code=400, detail="Không thể hạ quyền của Trưởng nhóm tạo không gian.")
+
+    found = False
+    for m in members:
+        if m.get("user_id") == target_user_id:
+            m["role"] = req.role
+            found = True
+            break
+
+    if not found:
+        raise HTTPException(status_code=404, detail="Không tìm thấy thành viên trong nhóm.")
+
+    now_iso = datetime.now(timezone.utc).isoformat()
+    await workspaces_col.update_one(
+        {"_id": workspace_id},
+        {"$set": {"members": members, "updated_at": now_iso}}
+    )
+
+    return WorkspaceResponse(
+        id=str(ws["_id"]),
+        name=ws["name"],
+        slug=ws.get("slug", ""),
+        description=ws.get("description", ""),
+        owner_id=str(ws.get("owner_id", user_id)),
+        members=[WorkspaceMemberSchema(**m) for m in members],
+        created_at=ws.get("created_at", ""),
+        updated_at=now_iso
+    )
+
+
+@router.delete("/{workspace_id}/members/{target_user_id}", response_model=WorkspaceResponse)
+async def remove_member(
+    workspace_id: str,
+    target_user_id: str,
+    current_user: dict = Depends(get_current_user)
+):
+    user_id = str(current_user["_id"])
+    workspaces_col = db_manager.get_collection("workspaces")
+
+    ws = await workspaces_col.find_one({"_id": workspace_id})
+    if not ws:
+        raise HTTPException(status_code=404, detail="Không tìm thấy không gian làm việc.")
+
+    members = ws.get("members", [])
+    caller = next((m for m in members if m.get("user_id") == user_id), None)
+
+    is_self = user_id == target_user_id
+    is_admin = (caller and caller.get("role") in ["admin", "owner"]) or str(ws.get("owner_id")) == user_id
+
+    if not (is_self or is_admin):
+        raise HTTPException(status_code=403, detail="Bạn không có quyền xóa thành viên này.")
+
+    if target_user_id == str(ws.get("owner_id")):
+        raise HTTPException(status_code=400, detail="Trưởng nhóm sở hữu không thể rời hoặc bị xóa khỏi Không gian.")
+
+    new_members = [m for m in members if m.get("user_id") != target_user_id]
+    if len(new_members) == len(members):
+        raise HTTPException(status_code=404, detail="Không tìm thấy thành viên cần xóa.")
+
+    now_iso = datetime.now(timezone.utc).isoformat()
+    await workspaces_col.update_one(
+        {"_id": workspace_id},
+        {"$set": {"members": new_members, "updated_at": now_iso}}
+    )
+
+    return WorkspaceResponse(
+        id=str(ws["_id"]),
+        name=ws["name"],
+        slug=ws.get("slug", ""),
+        description=ws.get("description", ""),
+        owner_id=str(ws.get("owner_id", user_id)),
+        members=[WorkspaceMemberSchema(**m) for m in new_members],
+        created_at=ws.get("created_at", ""),
+        updated_at=now_iso
+    )
+
+
+@router.post("/{workspace_id}/reset-invite-code")
+async def reset_invite_code(workspace_id: str, current_user: dict = Depends(get_current_user)):
+    user_id = str(current_user["_id"])
+    workspaces_col = db_manager.get_collection("workspaces")
+
+    ws = await workspaces_col.find_one({"_id": workspace_id})
+    if not ws:
+        raise HTTPException(status_code=404, detail="Không tìm thấy không gian làm việc.")
+
+    members = ws.get("members", [])
+    caller = next((m for m in members if m.get("user_id") == user_id), None)
+    if not caller or (caller.get("role") not in ["admin", "owner"] and str(ws.get("owner_id")) != user_id):
+        raise HTTPException(status_code=403, detail="Chỉ Quản trị viên mới có thể tạo lại mã mời.")
+
+    new_slug = f"{ws['name'].lower().replace(' ', '-')[:15]}-{uuid.uuid4().hex[:6]}"
+    now_iso = datetime.now(timezone.utc).isoformat()
+    await workspaces_col.update_one(
+        {"_id": workspace_id},
+        {"$set": {"slug": new_slug, "updated_at": now_iso}}
+    )
+
+    return {"message": "Đã tạo mới mã mời thành công!", "new_invite_code": new_slug}
+
+
+@router.get("/{workspace_id}/stats", response_model=WorkspaceStatsResponse)
+async def get_workspace_stats(workspace_id: str, current_user: dict = Depends(get_current_user)):
+    workspaces_col = db_manager.get_collection("workspaces")
+    boards_col = db_manager.get_collection("boards")
+    tasks_col = db_manager.get_collection("tasks")
+    notes_col = db_manager.get_collection("notes")
+
+    ws = await workspaces_col.find_one({"_id": workspace_id})
+    if not ws:
+        raise HTTPException(status_code=404, detail="Không tìm thấy không gian làm việc.")
+
+    boards = await boards_col.find({"workspace_id": workspace_id}).to_list(100)
+    board_ids = [str(b["_id"]) for b in boards]
+
+    all_tasks = await tasks_col.find({"board_id": {"$in": board_ids}}).to_list(1000) if board_ids else []
+    total_tasks = len(all_tasks)
+    completed_tasks = sum(1 for t in all_tasks if t.get("column_id") == "col-done")
+    ai_tasks_count = sum(1 for t in all_tasks if any("ai" in str(tag).lower() for tag in t.get("tags", [])))
+
+    notes_count = await notes_col.count_documents({"workspace_id": workspace_id})
+
+    return WorkspaceStatsResponse(
+        total_tasks=total_tasks,
+        completed_tasks=completed_tasks,
+        total_boards=len(boards),
+        total_members=len(ws.get("members", [])),
+        total_notes=notes_count,
+        ai_tasks_count=ai_tasks_count
+    )
 

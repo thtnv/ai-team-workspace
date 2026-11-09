@@ -14,6 +14,7 @@ import {
   UserPlus,
   Building2,
   Users,
+  Settings,
 } from 'lucide-react';
 
 export const Navbar: React.FC = () => {
@@ -30,6 +31,7 @@ export const Navbar: React.FC = () => {
     setLoginModalOpen,
     setOnboardingOpen,
     setInviteModalOpen,
+    setWorkspaceSettingsOpen,
   } = useStore();
 
   const [menuOpen, setMenuOpen] = useState(false);
@@ -89,14 +91,23 @@ export const Navbar: React.FC = () => {
 
           {/* Current Board & Workspace info */}
           <div className="hidden md:flex items-center gap-1.5 text-xs">
-            <button
-              onClick={() => setOnboardingOpen(true)}
-              className="rounded-md bg-slate-100 hover:bg-slate-200 border border-slate-200 px-2 py-0.5 text-[11px] font-semibold text-slate-700 truncate max-w-[150px] transition cursor-pointer flex items-center gap-1"
-              title="Nhấn để đổi hoặc tạo Không gian làm việc mới"
-            >
-              <Building2 className="h-3 w-3 text-slate-500" />
-              <span>{currentWorkspace?.name || 'Workspace'}</span>
-            </button>
+            <div className="flex items-center rounded-md bg-slate-100 border border-slate-200 overflow-hidden">
+              <button
+                onClick={() => setOnboardingOpen(true)}
+                className="hover:bg-slate-200 px-2 py-0.5 text-[11px] font-semibold text-slate-700 truncate max-w-[140px] transition cursor-pointer flex items-center gap-1"
+                title="Nhấn để đổi hoặc tạo Không gian làm việc mới"
+              >
+                <Building2 className="h-3 w-3 text-slate-500" />
+                <span>{currentWorkspace?.name || 'Workspace'}</span>
+              </button>
+              <button
+                onClick={() => setWorkspaceSettingsOpen(true)}
+                className="px-1.5 py-0.5 hover:bg-slate-200 text-slate-400 hover:text-slate-800 transition cursor-pointer border-l border-slate-200"
+                title="Cài đặt & Quản trị Không gian (Settings)"
+              >
+                <Settings className="h-3 w-3" />
+              </button>
+            </div>
             <span className="text-slate-400">/</span>
             <span className="text-xs font-bold text-slate-800 truncate max-w-[180px]">
               {currentBoard?.title || 'Sprint 1'}
@@ -216,6 +227,16 @@ export const Navbar: React.FC = () => {
                   </div>
                   
                   <div className="py-1 border-b border-slate-100">
+                    <button
+                      onClick={() => {
+                        setMenuOpen(false);
+                        setWorkspaceSettingsOpen(true);
+                      }}
+                      className="w-full flex items-center gap-2 rounded-lg px-2 py-1.5 text-xs font-medium text-slate-700 hover:bg-slate-100 transition cursor-pointer"
+                    >
+                      <Settings className="h-3.5 w-3.5 text-slate-500" />
+                      <span>Cài đặt Không gian (Admin)</span>
+                    </button>
                     <button
                       onClick={() => {
                         setMenuOpen(false);

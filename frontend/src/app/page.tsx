@@ -18,6 +18,7 @@ import { CreateTaskModal } from '@/components/CreateTaskModal';
 import { LoginModal } from '@/components/LoginModal';
 import { OnboardingModal } from '@/components/OnboardingModal';
 import { InviteModal } from '@/components/InviteModal';
+import { WorkspaceSettingsModal } from '@/components/WorkspaceSettingsModal';
 import {
   Sparkles,
   ArrowUpRight,
@@ -313,6 +314,7 @@ export default function Home() {
       <LoginModal />
       <OnboardingModal />
       <InviteModal />
+      <WorkspaceSettingsModal />
       <QuickStartSteps />
       <CommandPalette />
       <ProductWalkthrough />

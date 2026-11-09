@@ -16,6 +16,7 @@ import {
   Clock,
   CornerDownLeft,
   X,
+  Settings,
 } from 'lucide-react';
 import { Priority, Task } from '@/types';
 
@@ -39,6 +40,7 @@ export const CommandPalette: React.FC = () => {
     setInviteModalOpen,
     setAINotesOpen,
     setWalkthroughOpen,
+    setWorkspaceSettingsOpen,
     setSelectedTaskForDetail,
     setCurrentUser,
   } = useStore();
@@ -111,6 +113,19 @@ export const CommandPalette: React.FC = () => {
       run: () => {
         setCommandPaletteOpen(false);
         setCurrentView(currentView === 'kanban' ? 'list' : 'kanban');
+      },
+    },
+    {
+      id: 'act-workspace-settings',
+      type: 'action',
+      title: 'Cài đặt Không gian làm việc (Admin Settings)',
+      subtitle: 'Quản lý thành viên, đổi tên nhóm và cấu hình AI',
+      icon: Settings,
+      iconColor: 'text-white bg-slate-800',
+      keywords: 'settings admin quan tri cai dat thanh vien phan quyen',
+      run: () => {
+        setCommandPaletteOpen(false);
+        setWorkspaceSettingsOpen(true);
       },
     },
     {

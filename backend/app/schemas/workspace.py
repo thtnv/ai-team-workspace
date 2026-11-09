@@ -31,6 +31,24 @@ class WorkspaceInviteRequest(BaseModel):
     role: Optional[str] = "member"
 
 
+class WorkspaceUpdate(BaseModel):
+    name: Optional[str] = Field(None, min_length=2, max_length=100)
+    description: Optional[str] = None
+
+
+class WorkspaceMemberRoleUpdate(BaseModel):
+    role: str = Field(..., pattern="^(admin|member|viewer)$")
+
+
+class WorkspaceStatsResponse(BaseModel):
+    total_tasks: int
+    completed_tasks: int
+    total_boards: int
+    total_members: int
+    total_notes: int
+    ai_tasks_count: int
+
+
 class WorkspaceResponse(BaseSchema):
     id: str
     name: str
