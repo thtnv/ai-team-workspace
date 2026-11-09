@@ -91,6 +91,20 @@ const MEETING_TEMPLATES = [
   },
 ];
 
+const REAL_SAMPLE_NOTE = `Mục tiêu cuộc họp:
+- Hoàn thiện luồng xác thực Google & GitHub OAuth và tối ưu hóa hiệu năng bảng Kanban cho SyncPulse AI.
+
+Nội dung trao đổi:
+- Đã khắc phục lỗi ảnh đại diện Google 403 bằng cách thêm referrerPolicy="no-referrer" trên toàn bộ thẻ ảnh frontend.
+- Cơ chế liên kết tài khoản (Account Linking): Người dùng đăng nhập bằng cả Google và GitHub có cùng một địa chỉ Gmail sẽ tự động đăng nhập vào cùng một tài khoản duy nhất, không bị nhân bản dữ liệu.
+- Thay thế toàn bộ emoji bằng icon vector Lucide SVG chuẩn GitHub Enterprise.
+- Tối ưu hóa hiệu năng: Bọc React.memo cho TaskCard, KanbanColumn và bổ sung compound index trong MongoDB để loại bỏ hoàn toàn độ trễ lag khi thao tác.
+
+Phân công công việc:
+- Nguyễn Văn Viên: Kiểm thử đăng nhập Google và GitHub trên môi trường local, xác nhận avatar hiển thị sắc nét (Hạn chót: 18:00 hôm nay, Ưu tiên: Cao).
+- Backend team: Tạo compound index cho MongoDB và kiểm tra thời gian phản hồi API dưới 5ms (Hạn chót: Ngày mai, Ưu tiên: Cao).
+- Frontend team: Kiểm tra độ mượt kéo thả 60fps sau khi bọc React.memo (Hạn chót: Thứ Sáu, Ưu tiên: Vừa).`;
+
 export const AINotesModal: React.FC = () => {
   const {
     isAINotesOpen,
@@ -519,6 +533,16 @@ export const AINotesModal: React.FC = () => {
                     <span className="text-[10px] text-slate-400">Chọn mẫu để tự động điền cấu trúc</span>
                   </div>
                   <div className="flex items-center gap-1.5 flex-wrap">
+                    <button
+                      type="button"
+                      onClick={() => handleApplyTemplate(REAL_SAMPLE_NOTE)}
+                      className="inline-flex items-center gap-1.5 rounded-lg border border-indigo-200 bg-indigo-50 px-2.5 py-1 text-[11px] font-bold text-indigo-700 hover:bg-indigo-100 hover:border-indigo-300 transition cursor-pointer shadow-2xs"
+                      title="Điền ngay dữ liệu cuộc họp thật hoàn chỉnh vào khung để trải nghiệm phân tích AI tức thì"
+                    >
+                      <Sparkles className="h-3 w-3 text-indigo-600" />
+                      <span>Điền dữ liệu họp thật mẫu</span>
+                    </button>
+
                     {MEETING_TEMPLATES.map((tmpl) => {
                       const IconComp = tmpl.icon;
                       return (

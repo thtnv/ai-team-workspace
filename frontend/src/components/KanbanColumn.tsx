@@ -13,8 +13,8 @@ interface KanbanColumnProps {
   tasks: Task[];
 }
 
-export const KanbanColumn: React.FC<KanbanColumnProps> = ({ column, tasks }) => {
-  const { setCreateTaskOpen } = useStore();
+const KanbanColumnComponent: React.FC<KanbanColumnProps> = ({ column, tasks }) => {
+  const setCreateTaskOpen = useStore((s) => s.setCreateTaskOpen);
   const { setNodeRef, isOver } = useDroppable({
     id: column.id,
     data: {
@@ -90,3 +90,5 @@ export const KanbanColumn: React.FC<KanbanColumnProps> = ({ column, tasks }) => 
     </div>
   );
 };
+
+export const KanbanColumn = React.memo(KanbanColumnComponent);

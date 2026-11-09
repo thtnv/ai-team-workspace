@@ -12,8 +12,11 @@ interface TaskCardProps {
   task: Task;
 }
 
-export const TaskCard: React.FC<TaskCardProps> = ({ task }) => {
-  const { setSelectedTaskForDetail, lockedTasks, currentUser, currentBoard } = useStore();
+const TaskCardComponent: React.FC<TaskCardProps> = ({ task }) => {
+  const setSelectedTaskForDetail = useStore((s) => s.setSelectedTaskForDetail);
+  const lockedByUser = useStore((s) => s.lockedTasks[task.id]);
+  const currentUserName = useStore((s) => s.currentUser?.full_name);
+  const currentBoardId = useStore((s) => s.currentBoard?.id);
 
   const {
     attributes,
@@ -35,7 +38,7 @@ export const TaskCard: React.FC<TaskCardProps> = ({ task }) => {
     transition,
   };
 
-  const isLockedByOther = lockedTasks[task.id] && lockedTasks[task.id] !== currentUser?.full_name;
+  const isLockedByOther = Boolean(lockedByUser && lockedByUser !== currentUserName);
 
   const totalChecklists = task.checklists?.length || 0;
   const completedChecklists = task.checklists?.filter((c) => c.is_done).length || 0;
@@ -44,8 +47,8 @@ export const TaskCard: React.FC<TaskCardProps> = ({ task }) => {
   const handleCardClick = (e: React.MouseEvent) => {
     // Only open details if not actively dragging
     setSelectedTaskForDetail(task);
-    if (currentBoard?.id && currentUser?.full_name) {
-      socketService.emitLockTask(currentBoard.id, task.id, currentUser.full_name);
+    if (currentBoardId && currentUserName) {
+      socketService.emitLockTask(currentBoardId, task.id, currentUserName);
     }
   };
 
@@ -66,7 +69,7 @@ export const TaskCard: React.FC<TaskCardProps> = ({ task }) => {
       {isLockedByOther && (
         <div className="mb-2 flex items-center gap-1.5 rounded-md bg-amber-100 border border-amber-300 px-2 py-0.5 text-[10px] font-bold text-amber-800">
           <Lock className="h-3 w-3 animate-pulse text-amber-600" />
-          <span>{lockedTasks[task.id]} đang xem...</span>
+          <span>{lockedByUser} đang xem...</span>
         </div>
       )}
 
@@ -170,3 +173,5 @@ export const TaskCard: React.FC<TaskCardProps> = ({ task }) => {
     </div>
   );
 };
+
+export const TaskCard = React.memo(TaskCardComponent);

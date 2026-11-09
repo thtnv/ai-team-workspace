@@ -142,6 +142,18 @@ class DatabaseManager:
             self.db = self.client[settings.MONGODB_DB_NAME]
             self.is_in_memory = False
             logger.info("Successfully connected to live MongoDB!")
+
+            # Create essential indexes for high-performance sub-1ms lookups
+            try:
+                await self.db["tasks"].create_index([("board_id", 1), ("column_id", 1), ("order", 1)])
+                await self.db["tasks"].create_index([("board_id", 1)])
+                await self.db["workspaces"].create_index([("members.user_id", 1)])
+                await self.db["boards"].create_index([("workspace_id", 1)])
+                await self.db["notes"].create_index([("workspace_id", 1)])
+                await self.db["users"].create_index([("email", 1)], unique=True)
+                logger.info("Successfully ensured MongoDB indexes on tasks, workspaces, boards, notes, users.")
+            except Exception as ie:
+                logger.warning(f"Could not create database indexes: {ie}")
         except Exception as e:
             logger.warning(
                 f"Live MongoDB not available ({e}). Falling back to high-performance In-Memory Database for local development."

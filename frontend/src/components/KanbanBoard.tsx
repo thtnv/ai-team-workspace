@@ -10,6 +10,7 @@ import {
   useSensor,
   useSensors,
   closestCorners,
+  pointerWithin,
 } from '@dnd-kit/core';
 import confetti from 'canvas-confetti';
 import { useStore } from '@/store/useStore';
@@ -73,6 +74,15 @@ export const KanbanBoard: React.FC = () => {
       },
     })
   );
+
+  // Optimized hybrid collision detection: fast pointerWithin for 60fps tracking with closestCorners fallback
+  const collisionDetectionStrategy = (args: any) => {
+    const pointerCollisions = pointerWithin(args);
+    if (pointerCollisions.length > 0) {
+      return pointerCollisions;
+    }
+    return closestCorners(args);
+  };
 
   useEffect(() => {
     if (!currentBoard || !currentUser) return;
@@ -259,7 +269,7 @@ export const KanbanBoard: React.FC = () => {
     <div className="flex-1 min-h-0 w-full p-3 bg-slate-50 flex flex-col overflow-hidden">
       <DndContext
         sensors={sensors}
-        collisionDetection={closestCorners}
+        collisionDetection={collisionDetectionStrategy}
         onDragStart={handleDragStart}
         onDragEnd={handleDragEnd}
       >
