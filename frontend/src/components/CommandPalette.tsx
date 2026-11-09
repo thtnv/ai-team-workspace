@@ -18,14 +18,7 @@ import {
   X,
   Settings,
 } from 'lucide-react';
-import { Priority, Task } from '@/types';
-
-const priorityBadges: Record<Priority, { label: string; cls: string }> = {
-  urgent: { label: 'Khẩn cấp', cls: 'bg-rose-50 text-rose-700 border-rose-200' },
-  high: { label: 'Cao', cls: 'bg-amber-50 text-amber-700 border-amber-200' },
-  medium: { label: 'Vừa', cls: 'bg-sky-50 text-sky-700 border-sky-200' },
-  low: { label: 'Thấp', cls: 'bg-slate-100 text-slate-600 border-slate-200' },
-};
+import { Priority, Task, PRIORITY_CONFIG } from '@/types';
 
 export const CommandPalette: React.FC = () => {
   const {
@@ -347,7 +340,7 @@ export const CommandPalette: React.FC = () => {
                 {filteredTasks.map((t) => {
                   currentIndex++;
                   const isCurrent = currentIndex === selectedIndex;
-                  const pri = priorityBadges[t.priority] || priorityBadges.medium;
+                  const pri = PRIORITY_CONFIG[t.priority] || PRIORITY_CONFIG.medium;
 
                   return (
                     <div
@@ -366,7 +359,7 @@ export const CommandPalette: React.FC = () => {
                       <div className="flex items-center gap-2.5 min-w-0">
                         <span
                           className={`rounded border px-1.5 py-0.2 text-[9px] font-bold uppercase shrink-0 ${
-                            isCurrent ? 'bg-slate-800 text-white border-slate-700' : pri.cls
+                            isCurrent ? 'bg-slate-800 text-white border-slate-700' : pri.boxClass
                           }`}
                         >
                           {pri.label}

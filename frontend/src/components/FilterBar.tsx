@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useMemo } from 'react';
+import React, { useMemo, useState, useRef, useEffect } from 'react';
 import { useStore } from '@/store/useStore';
 import {
   Search,
@@ -11,7 +11,9 @@ import {
   Flame,
   RotateCcw,
   SlidersHorizontal,
+  ChevronDown,
 } from 'lucide-react';
+import { Priority, PRIORITY_CONFIG } from '@/types';
 
 export const FilterBar: React.FC = () => {
   const {
@@ -27,6 +29,19 @@ export const FilterBar: React.FC = () => {
     setFilterMyTasksOnly,
     resetFilters,
   } = useStore();
+
+  const [isPriorityMenuOpen, setIsPriorityMenuOpen] = useState(false);
+  const priorityMenuRef = useRef<HTMLDivElement>(null);
+
+  useEffect(() => {
+    const handleClickOutside = (e: MouseEvent) => {
+      if (priorityMenuRef.current && !priorityMenuRef.current.contains(e.target as Node)) {
+        setIsPriorityMenuOpen(false);
+      }
+    };
+    document.addEventListener('mousedown', handleClickOutside);
+    return () => document.removeEventListener('mousedown', handleClickOutside);
+  }, []);
 
   // Extract all unique tags from active tasks
   const availableTags = useMemo(() => {
@@ -94,23 +109,78 @@ export const FilterBar: React.FC = () => {
           )}
         </div>
 
-        {/* Priority Filter */}
-        <div className="hidden sm:flex items-center gap-1">
-          <select
-            value={selectedPriority || ''}
-            onChange={(e) => setSelectedPriority(e.target.value ? e.target.value : null)}
-            className={`rounded-lg border px-2 py-1 text-[11px] font-semibold transition cursor-pointer focus:outline-hidden ${
-              selectedPriority
-                ? 'border-slate-900 bg-slate-900 text-white'
-                : 'border-slate-200 bg-white text-slate-700 hover:bg-slate-50'
-            }`}
-          >
-            <option value="" className="bg-white text-slate-800 font-normal">Độ ưu tiên: Tất cả</option>
-            <option value="urgent" className="bg-white text-slate-800 font-normal">🔴 Khẩn cấp (Urgent)</option>
-            <option value="high" className="bg-white text-slate-800 font-normal">🟠 Cao (High)</option>
-            <option value="medium" className="bg-white text-slate-800 font-normal">🟡 Vừa (Medium)</option>
-            <option value="low" className="bg-white text-slate-800 font-normal">⚪ Thấp (Low)</option>
-          </select>
+        {/* Priority Filter with Color-Coded Text Boxes (No icons) */}
+        <div className="relative hidden sm:block" ref={priorityMenuRef}>
+          {selectedPriority ? (
+            <div
+              className={`inline-flex items-center gap-1.5 rounded-lg border px-2.5 py-1 text-[11px] uppercase tracking-wider shadow-2xs transition cursor-pointer ${
+                PRIORITY_CONFIG[selectedPriority as Priority]?.boxClass
+              }`}
+              onClick={() => setIsPriorityMenuOpen(!isPriorityMenuOpen)}
+            >
+              <span>{PRIORITY_CONFIG[selectedPriority as Priority]?.label}</span>
+              <button
+                type="button"
+                onClick={(e) => {
+                  e.stopPropagation();
+                  setSelectedPriority(null);
+                  setIsPriorityMenuOpen(false);
+                }}
+                className="rounded-full p-0.5 hover:bg-black/10 transition cursor-pointer"
+                title="Bỏ lọc ưu tiên"
+              >
+                <X className="h-3 w-3" />
+              </button>
+            </div>
+          ) : (
+            <button
+              type="button"
+              onClick={() => setIsPriorityMenuOpen(!isPriorityMenuOpen)}
+              className="inline-flex items-center gap-1.5 rounded-lg border border-slate-200 bg-white px-2.5 py-1 text-[11px] font-semibold text-slate-700 hover:bg-slate-50 transition cursor-pointer shadow-2xs"
+            >
+              <span>Độ ưu tiên: Tất cả</span>
+              <ChevronDown className={`h-3 w-3 text-slate-400 transition-transform ${isPriorityMenuOpen ? 'rotate-180' : ''}`} />
+            </button>
+          )}
+
+          {isPriorityMenuOpen && (
+            <div className="absolute left-0 top-full mt-1.5 z-50 w-44 rounded-xl border border-slate-200 bg-white p-1.5 shadow-xl space-y-1 animate-in fade-in zoom-in-95 duration-100">
+              <button
+                type="button"
+                onClick={() => {
+                  setSelectedPriority(null);
+                  setIsPriorityMenuOpen(false);
+                }}
+                className={`w-full rounded-lg border px-2.5 py-1.5 text-xs text-left transition cursor-pointer ${
+                  !selectedPriority
+                    ? 'border-slate-900 bg-slate-900 text-white font-bold'
+                    : 'border-slate-200 bg-white text-slate-700 hover:bg-slate-100 font-medium'
+                }`}
+              >
+                Tất cả mức độ
+              </button>
+
+              {(Object.keys(PRIORITY_CONFIG) as Priority[]).map((pKey) => {
+                const conf = PRIORITY_CONFIG[pKey];
+                const isSelected = selectedPriority === pKey;
+                return (
+                  <button
+                    key={pKey}
+                    type="button"
+                    onClick={() => {
+                      setSelectedPriority(pKey);
+                      setIsPriorityMenuOpen(false);
+                    }}
+                    className={`w-full rounded-lg border px-2.5 py-1.5 text-xs text-left transition cursor-pointer ${conf.boxClass} ${
+                      isSelected ? 'ring-2 ring-slate-900 font-extrabold' : conf.hoverClass
+                    }`}
+                  >
+                    {conf.label}
+                  </button>
+                );
+              })}
+            </div>
+          )}
         </div>
 
         {/* Tag Filter (if tags exist) */}

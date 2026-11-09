@@ -16,7 +16,7 @@ import {
   User as UserIcon,
   Loader2,
 } from 'lucide-react';
-import { Task, Priority, Subtask, TaskComment } from '@/types';
+import { Task, Priority, Subtask, TaskComment, PRIORITY_CONFIG } from '@/types';
 
 function formatRelativeTime(isoString?: string) {
   if (!isoString) return 'Vừa xong';
@@ -228,20 +228,29 @@ export const TaskDetailModal: React.FC = () => {
               <label className="text-[11px] font-bold uppercase tracking-wider text-slate-500">
                 Độ ưu tiên:
               </label>
-              <select
-                value={priority}
-                onChange={(e) => {
-                  const p = e.target.value as Priority;
-                  setPriority(p);
-                  handleSave({ priority: p });
-                }}
-                className="mt-1 w-full rounded-xl border border-slate-300 bg-slate-50 px-3.5 py-2 text-xs font-bold text-slate-800 focus:bg-white focus:border-[#84CC16] focus:outline-none"
-              >
-                <option value="low">Thấp (Low)</option>
-                <option value="medium">Vừa (Medium)</option>
-                <option value="high">Cao (High)</option>
-                <option value="urgent">Khẩn cấp (Urgent)</option>
-              </select>
+              <div className="mt-1.5 grid grid-cols-2 sm:grid-cols-4 gap-1.5">
+                {(Object.keys(PRIORITY_CONFIG) as Priority[]).map((pKey) => {
+                  const conf = PRIORITY_CONFIG[pKey];
+                  const isSelected = priority === pKey;
+                  return (
+                    <button
+                      key={pKey}
+                      type="button"
+                      onClick={() => {
+                        setPriority(pKey);
+                        handleSave({ priority: pKey });
+                      }}
+                      className={`rounded-lg border px-2 py-1.5 text-xs text-center transition cursor-pointer ${
+                        isSelected
+                          ? conf.activeClass
+                          : 'border-slate-200 bg-white text-slate-600 hover:bg-slate-50'
+                      }`}
+                    >
+                      {conf.label}
+                    </button>
+                  );
+                })}
+              </div>
             </div>
 
             <div>

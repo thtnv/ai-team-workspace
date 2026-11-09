@@ -3,7 +3,7 @@
 import React from 'react';
 import { useSortable } from '@dnd-kit/sortable';
 import { CSS } from '@dnd-kit/utilities';
-import { Task, Priority } from '@/types';
+import { Task, Priority, PRIORITY_CONFIG } from '@/types';
 import { useStore } from '@/store/useStore';
 import { socketService } from '@/lib/socket';
 import { CheckSquare, Clock, Sparkles, GripVertical, Lock, MessageSquare } from 'lucide-react';
@@ -11,13 +11,6 @@ import { CheckSquare, Clock, Sparkles, GripVertical, Lock, MessageSquare } from 
 interface TaskCardProps {
   task: Task;
 }
-
-const priorityConfig: Record<Priority, { label: string; badgeClass: string }> = {
-  urgent: { label: 'Khẩn cấp', badgeClass: 'bg-rose-50 text-rose-700 border-rose-200' },
-  high: { label: 'Cao', badgeClass: 'bg-amber-50 text-amber-700 border-amber-200' },
-  medium: { label: 'Vừa', badgeClass: 'bg-sky-50 text-sky-700 border-sky-200' },
-  low: { label: 'Thấp', badgeClass: 'bg-slate-100 text-slate-600 border-slate-200' },
-};
 
 export const TaskCard: React.FC<TaskCardProps> = ({ task }) => {
   const { setSelectedTaskForDetail, lockedTasks, currentUser, currentBoard } = useStore();
@@ -81,11 +74,11 @@ export const TaskCard: React.FC<TaskCardProps> = ({ task }) => {
       <div className="flex items-center justify-between gap-2 mb-2">
         <div className="flex items-center gap-1.5 flex-wrap">
           <span
-            className={`inline-flex items-center rounded-md border px-2 py-0.5 text-[10px] font-bold uppercase tracking-wider ${
-              priorityConfig[task.priority]?.badgeClass || priorityConfig.medium.badgeClass
+            className={`inline-flex items-center rounded-md border px-2 py-0.5 text-[10px] uppercase tracking-wider shadow-2xs ${
+              PRIORITY_CONFIG[task.priority]?.boxClass || PRIORITY_CONFIG.medium.boxClass
             }`}
           >
-            {priorityConfig[task.priority]?.label || task.priority}
+            {PRIORITY_CONFIG[task.priority]?.label || task.priority}
           </span>
 
           {task.ai_generated && (

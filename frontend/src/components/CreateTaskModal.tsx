@@ -4,7 +4,7 @@ import React, { useState } from 'react';
 import { useStore } from '@/store/useStore';
 import { api } from '@/lib/api';
 import { X, Plus, Loader2 } from 'lucide-react';
-import { Priority } from '@/types';
+import { Priority, PRIORITY_CONFIG } from '@/types';
 
 export const CreateTaskModal: React.FC = () => {
   const {
@@ -107,16 +107,26 @@ export const CreateTaskModal: React.FC = () => {
 
             <div>
               <label className="text-xs font-bold text-slate-700">Độ ưu tiên</label>
-              <select
-                value={priority}
-                onChange={(e) => setPriority(e.target.value as Priority)}
-                className="mt-1 w-full rounded-xl border border-slate-300 bg-slate-50 px-3 py-2 text-xs font-bold text-slate-800 focus:bg-white focus:border-[#84CC16] focus:outline-none"
-              >
-                <option value="low">Thấp (Low)</option>
-                <option value="medium">Vừa (Medium)</option>
-                <option value="high">Cao (High)</option>
-                <option value="urgent">Khẩn cấp (Urgent)</option>
-              </select>
+              <div className="mt-1.5 grid grid-cols-2 sm:grid-cols-4 gap-1.5">
+                {(Object.keys(PRIORITY_CONFIG) as Priority[]).map((pKey) => {
+                  const conf = PRIORITY_CONFIG[pKey];
+                  const isSelected = priority === pKey;
+                  return (
+                    <button
+                      key={pKey}
+                      type="button"
+                      onClick={() => setPriority(pKey)}
+                      className={`rounded-lg border px-2 py-1.5 text-xs text-center transition cursor-pointer ${
+                        isSelected
+                          ? conf.activeClass
+                          : 'border-slate-200 bg-white text-slate-600 hover:bg-slate-50'
+                      }`}
+                    >
+                      {conf.label}
+                    </button>
+                  );
+                })}
+              </div>
             </div>
           </div>
 

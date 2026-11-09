@@ -15,14 +15,7 @@ import {
   AlertCircle,
   Tag,
 } from 'lucide-react';
-import { Task, Priority } from '@/types';
-
-const priorityBadges: Record<Priority, { label: string; cls: string; dot: string }> = {
-  urgent: { label: 'Khẩn cấp', cls: 'bg-rose-50 text-rose-700 border-rose-200', dot: 'bg-rose-500' },
-  high: { label: 'Cao', cls: 'bg-amber-50 text-amber-700 border-amber-200', dot: 'bg-amber-500' },
-  medium: { label: 'Vừa', cls: 'bg-sky-50 text-sky-700 border-sky-200', dot: 'bg-sky-500' },
-  low: { label: 'Thấp', cls: 'bg-slate-100 text-slate-600 border-slate-200', dot: 'bg-slate-400' },
-};
+import { Task, Priority, PRIORITY_CONFIG } from '@/types';
 
 export const ListView: React.FC = () => {
   const {
@@ -138,7 +131,7 @@ export const ListView: React.FC = () => {
                   </div>
                 ) : (
                   colTasks.map((task) => {
-                    const pri = priorityBadges[task.priority] || priorityBadges.medium;
+                    const pri = PRIORITY_CONFIG[task.priority] || PRIORITY_CONFIG.medium;
                     const totalChk = task.checklists?.length || 0;
                     const doneChk = task.checklists?.filter((c) => c.is_done).length || 0;
                     const commentsCount = task.comments?.length || 0;
@@ -183,7 +176,7 @@ export const ListView: React.FC = () => {
                         <div className="flex items-center gap-3 sm:gap-4 shrink-0 text-xs pl-7 sm:pl-0 flex-wrap">
                           {/* Priority Badge */}
                           <span
-                            className={`rounded-md border px-2 py-0.5 text-[10px] font-bold uppercase tracking-wider ${pri.cls}`}
+                            className={`rounded-md border px-2 py-0.5 text-[10px] uppercase tracking-wider shadow-2xs ${pri.boxClass}`}
                           >
                             {pri.label}
                           </span>
