@@ -268,3 +268,4 @@ export const ProductWalkthrough: React.FC = () => {
     </div>
   );
 };
+

@@ -83,6 +83,30 @@ class ApiClient {
     return data;
   }
 
+  async socialLogin(payload: {
+    provider: string;
+    email: string;
+    full_name: string;
+    avatar_url?: string;
+    credential?: string;
+  }): Promise<{ access_token: string; user: User }> {
+    const data = await this.request<{ access_token: string; user: User }>('/api/auth/social', {
+      method: 'POST',
+      body: JSON.stringify(payload),
+    });
+    this.setToken(data.access_token);
+    return data;
+  }
+
+  async googleAuth(credential: string): Promise<{ access_token: string; user: User }> {
+    const data = await this.request<{ access_token: string; user: User }>('/api/auth/google', {
+      method: 'POST',
+      body: JSON.stringify({ credential }),
+    });
+    this.setToken(data.access_token);
+    return data;
+  }
+
   async getMe(): Promise<User> {
     return this.request<User>('/api/auth/me');
   }

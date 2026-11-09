@@ -422,3 +422,4 @@ export const CommandPalette: React.FC = () => {
     </div>
   );
 };
+

@@ -14,6 +14,18 @@ class UserLogin(BaseModel):
     password: str
 
 
+class SocialLoginRequest(BaseModel):
+    provider: str  # "google" | "github" | "sso"
+    email: EmailStr
+    full_name: str
+    avatar_url: Optional[str] = None
+    credential: Optional[str] = None
+
+
+class GoogleAuthRequest(BaseModel):
+    credential: str
+
+
 class UserResponse(BaseSchema):
     id: str
     email: EmailStr
