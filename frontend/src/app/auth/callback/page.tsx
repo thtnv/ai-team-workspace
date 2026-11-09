@@ -5,7 +5,7 @@ import { useRouter, useSearchParams } from 'next/navigation';
 import { api } from '@/lib/api';
 import { useStore } from '@/store/useStore';
 import { socketService } from '@/lib/socket';
-import { Loader2, CheckCircle2, AlertCircle, ArrowLeft } from 'lucide-react';
+import { Loader2, CheckCircle2, AlertCircle, ArrowLeft, Zap } from 'lucide-react';
 
 function CallbackContent() {
   const router = useRouter();
@@ -150,7 +150,7 @@ function CallbackContent() {
       <div className="w-full max-w-[420px] rounded-2xl border border-slate-200 bg-white p-6 shadow-xl text-center">
         {/* Brand */}
         <div className="inline-flex h-11 w-11 items-center justify-center rounded-2xl bg-[#D4FF00] text-slate-950 font-black text-lg mb-3 shadow-xs border border-black/10">
-          ⚡
+          <Zap className="h-5 w-5 text-slate-950 fill-slate-950" />
         </div>
         <h2 className="text-base font-bold text-slate-900 tracking-tight">SyncPulse AI</h2>
         <p className="text-xs text-slate-500 mb-5">Xác thực tài khoản an toàn</p>

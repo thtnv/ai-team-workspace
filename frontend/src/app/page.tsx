@@ -30,6 +30,8 @@ import {
   Kanban,
   List,
   Search,
+  Flame,
+  Zap,
 } from 'lucide-react';
 
 export default function Home() {
@@ -180,8 +182,9 @@ export default function Home() {
                   <span className="font-bold text-slate-800 font-mono">{doneTasks}/{totalTasks}</span>
                 </div>
                 {urgentTasks > 0 && (
-                  <div className="rounded bg-rose-50 border border-rose-200 px-1.5 py-0.2 text-rose-700 font-bold text-[10px]">
-                    🔥 {urgentTasks} gấp
+                  <div className="flex items-center gap-1 rounded bg-rose-50 border border-rose-200 px-1.5 py-0.5 text-rose-700 font-bold text-[10px]">
+                    <Flame className="h-3 w-3 text-rose-500 fill-rose-500 shrink-0" />
+                    <span>{urgentTasks} gấp</span>
                   </div>
                 )}
               </div>
@@ -238,7 +241,7 @@ export default function Home() {
                 title="Xem Tour hướng dẫn sử dụng (Product Walkthrough)"
               >
                 <div className="flex h-4 w-4 items-center justify-center rounded bg-[#D4FF00] text-slate-950 font-black text-[10px] border border-black/10">
-                  ⚡
+                  <Zap className="h-3 w-3 text-slate-950 fill-slate-950" />
                 </div>
                 <span className="font-semibold text-slate-900 group-hover:text-slate-950">
                   Tour hướng dẫn
@@ -265,7 +268,7 @@ export default function Home() {
           <div className="flex flex-1 items-center justify-center p-6">
             <div className="flex flex-col items-center text-center max-w-md bg-white border border-slate-200 rounded-2xl p-8 shadow-sm">
               <div className="flex h-12 w-12 items-center justify-center rounded-2xl bg-[#D4FF00] text-slate-950 font-black text-xl mb-4 border border-black/10">
-                ⚡
+                <Zap className="h-6 w-6 text-slate-950 fill-slate-950" />
               </div>
               <h2 className="text-lg font-bold text-slate-900 mb-2">Chào mừng đến với SyncPulse AI</h2>
               <p className="text-xs text-slate-500 leading-relaxed mb-6">

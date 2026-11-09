@@ -39,8 +39,17 @@ export const FilterBar: React.FC = () => {
         setIsPriorityMenuOpen(false);
       }
     };
+    const handleKeyDown = (e: KeyboardEvent) => {
+      if (e.key === 'Escape') {
+        setIsPriorityMenuOpen(false);
+      }
+    };
     document.addEventListener('mousedown', handleClickOutside);
-    return () => document.removeEventListener('mousedown', handleClickOutside);
+    document.addEventListener('keydown', handleKeyDown);
+    return () => {
+      document.removeEventListener('mousedown', handleClickOutside);
+      document.removeEventListener('keydown', handleKeyDown);
+    };
   }, []);
 
   // Extract all unique tags from active tasks
@@ -86,7 +95,7 @@ export const FilterBar: React.FC = () => {
   }, [tasks, searchQuery, selectedPriority, selectedTag, filterMyTasksOnly, currentUser]);
 
   return (
-    <div className="border-b border-slate-200 bg-white/90 backdrop-blur-xs px-4 py-1.5 flex items-center justify-between gap-2.5 flex-shrink-0 text-xs">
+    <div className="relative z-30 border-b border-slate-200 bg-white/95 backdrop-blur-xs px-4 py-1.5 flex items-center justify-between gap-2.5 flex-shrink-0 text-xs">
       {/* Left: Search input & quick filters */}
       <div className="flex items-center gap-2 flex-1 min-w-0">
         {/* Search input */}
@@ -144,14 +153,14 @@ export const FilterBar: React.FC = () => {
           )}
 
           {isPriorityMenuOpen && (
-            <div className="absolute left-0 top-full mt-1.5 z-50 w-44 rounded-xl border border-slate-200 bg-white p-1.5 shadow-xl space-y-1 animate-in fade-in zoom-in-95 duration-100">
+            <div className="absolute left-0 top-full mt-1.5 z-50 w-48 rounded-xl border border-slate-200 bg-white p-2 shadow-2xl space-y-1.5 ring-1 ring-black/5 animate-in fade-in zoom-in-95 duration-100">
               <button
                 type="button"
                 onClick={() => {
                   setSelectedPriority(null);
                   setIsPriorityMenuOpen(false);
                 }}
-                className={`w-full rounded-lg border px-2.5 py-1.5 text-xs text-left transition cursor-pointer ${
+                className={`w-full rounded-lg border px-3 py-1.5 text-xs text-left transition cursor-pointer ${
                   !selectedPriority
                     ? 'border-slate-900 bg-slate-900 text-white font-bold'
                     : 'border-slate-200 bg-white text-slate-700 hover:bg-slate-100 font-medium'
@@ -171,7 +180,7 @@ export const FilterBar: React.FC = () => {
                       setSelectedPriority(pKey);
                       setIsPriorityMenuOpen(false);
                     }}
-                    className={`w-full rounded-lg border px-2.5 py-1.5 text-xs text-left transition cursor-pointer ${conf.boxClass} ${
+                    className={`w-full rounded-lg border px-3 py-1.5 text-xs text-left transition cursor-pointer shadow-2xs ${conf.boxClass} ${
                       isSelected ? 'ring-2 ring-slate-900 font-extrabold' : conf.hoverClass
                     }`}
                   >

@@ -14,6 +14,8 @@ import {
   Trophy,
   ChevronRight,
   ExternalLink,
+  Zap,
+  Lightbulb,
 } from 'lucide-react';
 
 export const QuickStartSteps: React.FC = () => {
@@ -109,7 +111,7 @@ export const QuickStartSteps: React.FC = () => {
           <div className="space-y-1">
             <div className="flex items-center gap-2">
               <div className="flex h-7 w-7 items-center justify-center rounded-lg bg-[#D4FF00] text-slate-950 font-black text-sm shadow-2xs border border-black/10">
-                ⚡
+                <Zap className="h-4 w-4 text-slate-950 fill-slate-950" />
               </div>
               <h2 className="text-base font-bold text-slate-900">
                 Hướng dẫn khởi động nhanh (Quick Start)
@@ -213,8 +215,9 @@ export const QuickStartSteps: React.FC = () => {
 
         {/* Footer */}
         <div className="border-t border-slate-100 bg-slate-50 px-5 py-3 flex items-center justify-between text-xs">
-          <span className="text-slate-500 text-[11px]">
-            💡 Mẹo: Bạn có thể mở lại bảng hướng dẫn này bất kỳ lúc nào từ thanh tiêu đề.
+          <span className="text-slate-500 text-[11px] flex items-center gap-1.5">
+            <Lightbulb className="h-3 w-3 text-amber-500 shrink-0" />
+            <span>Mẹo: Bạn có thể mở lại bảng hướng dẫn này bất kỳ lúc nào từ thanh tiêu đề.</span>
           </span>
           <button
             onClick={() => setQuickStartOpen(false)}

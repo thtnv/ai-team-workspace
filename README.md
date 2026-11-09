@@ -1,19 +1,19 @@
-# ⚡ SyncPulse AI — Real-time Team Workspace & Task Management
+# SyncPulse AI — Real-time Team Workspace & Task Management
 
 > **Next-Gen Collaborative Workspace with Real-time WebSockets, MongoDB, and Google Gemini AI Assistant**  
 > *Được thiết kế theo chuẩn Linear & Raycast với điểm nhấn màu Acid Lime (`#D4FF00`), tối ưu hóa độ trễ cực thấp (Sub-20ms) và giao diện Light Mode tinh gọn.*
 
 ---
 
-## 🌟 Tính Năng Nổi Bật (Key Features)
+## Tính Năng Nổi Bật (Key Features)
 
-- 👑 **Quy Trình Onboarding & Phân Quyền Nhóm Trưởng (Chuẩn Linear & Plane.so):**
+- **Quy Trình Onboarding & Phân Quyền Nhóm Trưởng (Chuẩn Linear & Plane.so):**
   - **Dành cho Nhóm trưởng (Team Leader):** Đăng ký tài khoản xong, hệ thống hướng dẫn thiết lập ngay Tên Nhóm / Công ty và khởi tạo Bảng Kanban khởi đầu với 4 cột chuẩn.
   - **Mời thành viên đa kênh:** Nhóm trưởng có thể mời qua **Mã mời (Workspace Code)**, **Đường link mời trực tiếp 1-click** hoặc **Mời trực tiếp qua Email**.
   - **Tự động liên kết (Auto-linking):** Khi thành viên được mời đăng ký tài khoản với email tương ứng, hệ thống tự động đưa họ vào đúng Nhóm làm việc.
   - **Chế độ Reviewer/Demo tiện lợi:** Người kiểm thử hoặc nhà tuyển dụng có thể bấm 1 nút để khám phá ngay dữ liệu mẫu (Sprint 24) mà không cần cấu hình từ đầu.
 
-- 🚀 **Bảng Kanban Thời Gian Thực (Multi-user Real-time Collaboration):**
+- **Bảng Kanban Thời Gian Thực (Multi-user Real-time Collaboration):**
   - Kéo thả thẻ mượt mà giữa các cột (*To Do, In Progress, In Review, Done*) sử dụng `@dnd-kit/core` & `@dnd-kit/sortable`.
   - **Optimistic UI Updates:** Trạng thái giao diện phản hồi tức thì (0ms latency), tự động rollback nếu gặp sự cố mạng.
   - Phân luồng Room Isolation theo Board ID (`board_{id}`) giảm 90% broadcast dư thừa.
@@ -21,24 +21,24 @@
   - **Visual Task Locking:** Hiển thị ai đang xem/chỉnh sửa thẻ task để tránh xung đột dữ liệu giữa các thành viên.
   - Hiệu ứng pháo hoa Confetti ăn mừng khi hoàn thành công việc (thả task vào cột **Done**).
 
-- 🤖 **AI Task Breakdown (Google Gemini API):**
+- **AI Task Breakdown (Google Gemini API):**
   - Nhập 1 yêu cầu tính năng / User Story tổng quát (VD: *"Làm tính năng đăng nhập bằng Google OAuth và phân quyền"*).
   - Trợ lý AI tự động phân tích và sinh ra danh sách task con chi tiết kèm checklist, acceptance criteria, độ ưu tiên, tag và thời gian ước tính (Story points).
   - Sử dụng **Structured Outputs (Pydantic Schema)** đảm bảo 100% định dạng JSON chuẩn.
   - Hỗ trợ xem trước và nạp tự động toàn bộ task vào cột **To Do** chỉ với 1 click.
 
-- 📝 **AI Meeting Notes to Action Items:**
+- **AI Meeting Notes to Action Items:**
   - Ghi chép hoặc dán biên bản cuộc họp nhanh.
   - Trợ lý AI trích xuất tự động: Tóm tắt tổng quan (TL;DR), Các quyết định kỹ thuật cốt lõi, và Danh sách đầu việc cần làm (Action Items) có người phụ trách rõ ràng.
   - **1-Click Convert to Task:** Chuyển đổi Action Item thành thẻ Kanban chính thức trên bảng với real-time broadcast cho toàn đội.
 
-- 🛡️ **Kiến trúc Dữ liệu Document NoSQL & Dual-mode Engine:**
+- **Kiến trúc Dữ liệu Document NoSQL & Dual-mode Engine:**
   - MongoDB async driver với **Motor**.
   - **Dual-mode In-Memory Fallback:** Tự động chuyển sang chế độ in-memory nếu chưa khởi động MongoDB, giúp nhà tuyển dụng hoặc người review có thể clone về và chạy trải nghiệm ngay lập tức mà không bắt buộc phải cài đặt MongoDB từ trước.
 
 ---
 
-## 🛠️ Công Nghệ Sử Dụng (Tech Stack)
+## Công Nghệ Sử Dụng (Tech Stack)
 
 | Lớp | Công nghệ |
 | :--- | :--- |
@@ -50,7 +50,7 @@
 
 ---
 
-## 🚀 Hướng Dẫn Cài Đặt & Khởi Chạy (Quick Start)
+## Hướng Dẫn Cài Đặt & Khởi Chạy (Quick Start)
 
 ### 1. Clone mã nguồn
 ```bash
@@ -110,7 +110,7 @@ Truy cập `http://localhost:3000` trên trình duyệt.
 
 ---
 
-## 🧪 Hướng Dẫn Kiểm Thử Dự Án Chi Tiết (Testing Guide)
+## Hướng Dẫn Kiểm Thử Dự Án Chi Tiết (Testing Guide)
 
 ### 1. Đăng ký & Đăng nhập tài khoản mới (Self-Registration)
 Dự án hỗ trợ hệ thống Authentication JWT hoàn chỉnh, **không yêu cầu tài khoản mẫu cố định**:
@@ -128,28 +128,28 @@ Dự án hỗ trợ hệ thống Authentication JWT hoàn chỉnh, **không yêu
    - Truy cập `http://localhost:3000`.
    - Bấm **"Đăng ký"** một tài khoản thứ hai (ví dụ: `Sarah Chen` - `sarah@company.com`).
 3. **Đặt 2 cửa sổ cạnh nhau trên màn hình và quan sát:**
-   - 🟢 **Live Presence:** Thanh Navbar của cả 2 bên hiển thị ngay lập tức nhãn `Online (2)` kèm avatar của cả 2 người.
-   - 🔄 **Đồng bộ kéo thả Kanban (< 20ms):** Dùng chuột kéo một thẻ task bất kỳ ở Cửa sổ 1 -> Thẻ task ở Cửa sổ 2 tự động di chuyển tức thì sang cột mới mà không cần bấm F5.
-   - 🔒 **Visual Task Lock:** Click mở chi tiết 1 task ở Cửa sổ 1 -> Cửa sổ 2 lập tức hiển thị viền vàng và nhãn cảnh báo: *"🔒 [Tên bạn] đang xem..."* để chống sửa đè.
-   - 🎉 **Confetti Effect:** Kéo thẻ task thả vào cột **Done** -> Bắn pháo hoa chúc mừng hoàn thành task.
+   - **Live Presence:** Thanh Navbar của cả 2 bên hiển thị ngay lập tức nhãn `Online (2)` kèm avatar của cả 2 người.
+   - **Đồng bộ kéo thả Kanban (< 20ms):** Dùng chuột kéo một thẻ task bất kỳ ở Cửa sổ 1 -> Thẻ task ở Cửa sổ 2 tự động di chuyển tức thì sang cột mới mà không cần bấm F5.
+   - **Visual Task Lock:** Click mở chi tiết 1 task ở Cửa sổ 1 -> Cửa sổ 2 lập tức hiển thị viền vàng và nhãn cảnh báo: *"[Tên bạn] đang xem..."* để chống sửa đè.
+   - **Confetti Effect:** Kéo thẻ task thả vào cột **Done** -> Bắn pháo hoa chúc mừng hoàn thành task.
 
 ---
 
 ### 3. Kiểm thử Trợ lý AI (Google Gemini)
-1. **✨ AI Task Breakdown:**
-   - Bấm nút **"✨ AI Breakdown"** trên Navbar.
+1. **AI Task Breakdown:**
+   - Bấm nút **"AI Breakdown"** trên Navbar.
    - Nhập một yêu cầu kỹ thuật (hoặc chọn gợi ý mẫu có sẵn) -> Bấm **"Phân rã với Gemini"**.
    - Xem kết quả phân rã thành các task con chi tiết kèm checklist.
    - Bấm **"Thêm các Task vào Kanban"** -> Toàn bộ task con sẽ được lưu vào cơ sở dữ liệu và xuất hiện ngay lập tức trên cột **To Do** của cả 2 màn hình.
-2. **📝 AI Meeting Notes to Action Items:**
-   - Bấm nút **"📝 Notes"** trên Navbar.
+2. **AI Meeting Notes to Action Items:**
+   - Bấm nút **"Notes"** trên Navbar.
    - Chọn biên bản cuộc họp mẫu có sẵn -> Bấm **"Phân tích bằng AI"**.
    - AI trích xuất TL;DR, quyết định cốt lõi và danh sách Action Items.
    - Bấm nút **"Tạo Task"** tại bất kỳ Action Item nào -> Thẻ việc làm sẽ được sinh ra trực tiếp trên bảng Kanban.
 
 ---
 
-## 📂 Cấu Trúc Dự Án (Project Structure)
+## Cấu Trúc Dự Án (Project Structure)
 
 ```
 ai-team-workspace/
@@ -179,5 +179,5 @@ ai-team-workspace/
 
 ---
 
-## 📄 License
+## License
 Dự án được phát hành theo giấy phép [MIT License](LICENSE).

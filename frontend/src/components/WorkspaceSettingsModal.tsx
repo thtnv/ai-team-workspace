@@ -24,6 +24,7 @@ import {
   ExternalLink,
   ChevronRight,
   ShieldAlert,
+  Zap,
 } from 'lucide-react';
 
 export const WorkspaceSettingsModal: React.FC = () => {
@@ -202,7 +203,7 @@ export const WorkspaceSettingsModal: React.FC = () => {
         <div className="flex items-center justify-between px-6 py-4 border-b border-slate-200 bg-white">
           <div className="flex items-center gap-3">
             <div className="flex h-9 w-9 items-center justify-center rounded-xl bg-slate-900 text-[#D4FF00] font-black text-sm shadow-xs">
-              ⚡
+              <Zap className="h-4 w-4 text-[#D4FF00] fill-[#D4FF00]" />
             </div>
             <div>
               <div className="flex items-center gap-2">
@@ -566,7 +567,7 @@ export const WorkspaceSettingsModal: React.FC = () => {
                   <div className="flex items-center justify-between">
                     <div className="flex items-center gap-2">
                       <div className="flex h-7 w-7 items-center justify-center rounded-lg bg-[#D4FF00] text-slate-950 font-black text-xs">
-                        ✨
+                        <Sparkles className="h-4 w-4 text-slate-950" />
                       </div>
                       <div>
                         <div className="text-xs font-bold text-slate-900">Google Gemini AI Engine</div>

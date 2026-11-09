@@ -19,6 +19,7 @@ import {
   CheckCircle2,
   ShieldCheck,
   Settings2,
+  Zap,
 } from 'lucide-react';
 
 export const LoginModal: React.FC = () => {
@@ -283,7 +284,7 @@ export const LoginModal: React.FC = () => {
         {/* Brand Header */}
         <div className="text-center pt-0 pb-2">
           <div className="inline-flex h-9 w-9 items-center justify-center rounded-xl bg-[#D4FF00] text-slate-950 font-black text-base mb-1.5 shadow-2xs border border-black/10">
-            ⚡
+            <Zap className="h-5 w-5 text-slate-950 fill-slate-950" />
           </div>
           <h2 className="text-base font-bold tracking-tight text-slate-900">
             {mode === 'login' ? 'Chào mừng bạn quay lại' : 'Tạo tài khoản mới'}

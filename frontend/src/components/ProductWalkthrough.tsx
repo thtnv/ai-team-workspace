@@ -81,7 +81,7 @@ export const ProductWalkthrough: React.FC = () => {
       title: 'Kéo thả thẻ việc & Chuyển đổi Chế độ xem',
       headline: 'Trải nghiệm linh hoạt giữa Bảng Kanban và Danh sách phẳng (List View)',
       description:
-        'Kéo thả thẻ việc trực quan giữa 4 cột To Do ➔ In Progress ➔ In Review ➔ Done. Kéo việc vào Done sẽ kích hoạt pháo hoa vinh danh. Ngoài ra, bạn có thể bấm nút chuyển sang List View để quét nhanh hàng loạt task.',
+        'Kéo thả thẻ việc trực quan giữa 4 cột To Do -> In Progress -> In Review -> Done. Kéo việc vào Done sẽ kích hoạt pháo hoa vinh danh. Ngoài ra, bạn có thể bấm nút chuyển sang List View để quét nhanh hàng loạt task.',
       highlights: [
         'Kéo thả mượt mà với @dnd-kit và tối ưu chống giật lag.',
         'Cơ chế Khóa thẻ từ xa (Remote Lock) ngăn 2 người sửa đè lên nhau.',

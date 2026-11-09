@@ -15,6 +15,7 @@ import {
   Building2,
   Users,
   Settings,
+  Zap,
 } from 'lucide-react';
 
 export const Navbar: React.FC = () => {
@@ -77,7 +78,7 @@ export const Navbar: React.FC = () => {
         <div className="flex items-center gap-3">
           <div className="flex items-center gap-1.5">
             <div className="flex h-7 w-7 items-center justify-center rounded-lg bg-[#D4FF00] font-black text-slate-950 text-xs shadow-2xs border border-black/10">
-              ⚡
+              <Zap className="h-4 w-4 text-slate-950 fill-slate-950" />
             </div>
             <div className="flex items-center gap-1">
               <span className="text-sm font-bold tracking-tight text-slate-900">

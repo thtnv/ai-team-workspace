@@ -3,7 +3,7 @@
 import React, { useState } from 'react';
 import { useStore } from '@/store/useStore';
 import { api } from '@/lib/api';
-import { Sparkles, X, Loader2, Plus, Clock, Check } from 'lucide-react';
+import { Sparkles, X, Loader2, Plus, Clock, Check, Lightbulb } from 'lucide-react';
 import { TaskBreakdownResponse } from '@/types';
 
 export const AIBreakdownModal: React.FC = () => {
@@ -184,8 +184,9 @@ export const AIBreakdownModal: React.FC = () => {
             <div className="space-y-4 pt-2">
               {/* Architecture Summary */}
               <div className="rounded-xl border border-emerald-200 bg-emerald-50/60 p-3.5">
-                <span className="text-xs font-bold uppercase tracking-wider text-emerald-800">
-                  💡 Tóm tắt kiến trúc phân rã
+                <span className="text-xs font-bold uppercase tracking-wider text-emerald-800 flex items-center gap-1.5">
+                  <Lightbulb className="h-3.5 w-3.5 text-emerald-700" />
+                  <span>Tóm tắt kiến trúc phân rã</span>
                 </span>
                 <p className="mt-1 text-xs text-slate-700 leading-relaxed font-medium">
                   {result.summary}

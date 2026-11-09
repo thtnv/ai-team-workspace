@@ -21,13 +21,19 @@ import {
   List,
   CheckSquare,
   Wand2,
+  Rocket,
+  Target,
+  Users as UsersIcon,
+  Lightbulb,
+  Zap,
 } from 'lucide-react';
 import { Note, ActionItem, NoteSummary } from '@/types';
 
 const MEETING_TEMPLATES = [
   {
     id: 'standup',
-    name: '🚀 Daily Standup',
+    name: 'Daily Standup',
+    icon: Rocket,
     content: `## Daily Standup - Cập nhật tiến độ
 ### 1. Việc đã hoàn thành hôm qua:
 - 
@@ -40,7 +46,8 @@ const MEETING_TEMPLATES = [
   },
   {
     id: 'sprint_planning',
-    name: '🎯 Sprint Planning',
+    name: 'Sprint Planning',
+    icon: Target,
     content: `## Kế hoạch Sprint mới
 ### Mục tiêu Sprint (Sprint Goal):
 - 
@@ -55,7 +62,8 @@ const MEETING_TEMPLATES = [
   },
   {
     id: 'one_on_one',
-    name: '👥 Họp 1-on-1',
+    name: 'Họp 1-on-1',
+    icon: UsersIcon,
     content: `## Biên bản Họp 1-on-1
 ### Điểm sáng & Tiến độ tuần qua:
 - 
@@ -68,7 +76,8 @@ const MEETING_TEMPLATES = [
   },
   {
     id: 'brainstorm',
-    name: '💡 Brainstorming & RFC',
+    name: 'Brainstorming & RFC',
+    icon: Lightbulb,
     content: `## Thảo luận Giải pháp Kỹ thuật (RFC)
 ### Vấn đề cần giải quyết:
 - 
@@ -447,7 +456,14 @@ export const AINotesModal: React.FC = () => {
                 >
                   <div className="font-bold truncate">{n.title}</div>
                   <div className="mt-1 flex items-center gap-1.5 text-[10px] text-slate-500">
-                    <span>{n.summary ? '✨ Đã phân tích' : 'Chưa phân tích'}</span>
+                    {n.summary ? (
+                      <span className="flex items-center gap-1 text-emerald-700 font-medium">
+                        <Sparkles className="h-2.5 w-2.5 text-emerald-600" />
+                        <span>Đã phân tích</span>
+                      </span>
+                    ) : (
+                      <span>Chưa phân tích</span>
+                    )}
                   </div>
                 </button>
               ))}
@@ -494,23 +510,30 @@ export const AINotesModal: React.FC = () => {
                 {/* Quick Meeting Templates Bar */}
                 <div className="rounded-xl border border-slate-200 bg-slate-50/70 p-2.5 space-y-1.5">
                   <div className="flex items-center justify-between">
-                    <span className="text-[11px] font-bold uppercase tracking-wider text-slate-600">
-                      ⚡ Mẫu biên bản họp có sẵn (1-Click):
-                    </span>
+                    <div className="flex items-center gap-1.5">
+                      <Zap className="h-3 w-3 text-amber-500 fill-amber-500" />
+                      <span className="text-[11px] font-bold uppercase tracking-wider text-slate-600">
+                        Mẫu biên bản họp có sẵn (1-Click):
+                      </span>
+                    </div>
                     <span className="text-[10px] text-slate-400">Chọn mẫu để tự động điền cấu trúc</span>
                   </div>
                   <div className="flex items-center gap-1.5 flex-wrap">
-                    {MEETING_TEMPLATES.map((tmpl) => (
-                      <button
-                        key={tmpl.id}
-                        type="button"
-                        onClick={() => handleApplyTemplate(tmpl.content)}
-                        className="inline-flex items-center gap-1 rounded-lg border border-slate-200 bg-white px-2.5 py-1 text-[11px] font-semibold text-slate-700 hover:border-slate-400 hover:bg-slate-100 hover:text-slate-900 transition cursor-pointer shadow-2xs"
-                        title={`Áp dụng ${tmpl.name}`}
-                      >
-                        <span>{tmpl.name}</span>
-                      </button>
-                    ))}
+                    {MEETING_TEMPLATES.map((tmpl) => {
+                      const IconComp = tmpl.icon;
+                      return (
+                        <button
+                          key={tmpl.id}
+                          type="button"
+                          onClick={() => handleApplyTemplate(tmpl.content)}
+                          className="inline-flex items-center gap-1.5 rounded-lg border border-slate-200 bg-white px-2.5 py-1 text-[11px] font-semibold text-slate-700 hover:border-slate-400 hover:bg-slate-100 hover:text-slate-900 transition cursor-pointer shadow-2xs"
+                          title={`Áp dụng ${tmpl.name}`}
+                        >
+                          <IconComp className="h-3 w-3 text-slate-600" />
+                          <span>{tmpl.name}</span>
+                        </button>
+                      );
+                    })}
                   </div>
                 </div>
 
@@ -596,7 +619,7 @@ export const AINotesModal: React.FC = () => {
                           ) : (
                             <>
                               <Mic className="h-3 w-3 text-slate-600" />
-                              <span>🎙️ Bật Mic nói</span>
+                              <span>Bật Mic nói</span>
                             </>
                           )}
                         </button>
@@ -649,8 +672,9 @@ export const AINotesModal: React.FC = () => {
                   <div className="rounded-2xl border border-slate-200 bg-slate-50/70 p-5 space-y-5">
                     {/* TL;DR Overview */}
                     <div className="rounded-xl border border-emerald-200 bg-emerald-50/60 p-3.5">
-                      <span className="text-xs font-bold uppercase tracking-wider text-emerald-800">
-                        💡 Tổng quan cuộc họp (TL;DR)
+                      <span className="text-xs font-bold uppercase tracking-wider text-emerald-800 flex items-center gap-1.5">
+                        <Lightbulb className="h-3.5 w-3.5 text-emerald-700" />
+                        <span>Tổng quan cuộc họp (TL;DR)</span>
                       </span>
                       <p className="mt-1 text-xs text-slate-800 leading-relaxed font-medium">
                         {selectedNote.summary.overview}
@@ -660,8 +684,9 @@ export const AINotesModal: React.FC = () => {
                     {/* Key Decisions */}
                     {selectedNote.summary.key_decisions?.length > 0 && (
                       <div className="space-y-2">
-                        <span className="text-xs font-bold uppercase tracking-wider text-slate-700">
-                          🎯 Các quyết định cốt lõi đã chốt:
+                        <span className="text-xs font-bold uppercase tracking-wider text-slate-700 flex items-center gap-1.5">
+                          <CheckCircle2 className="h-3.5 w-3.5 text-emerald-600" />
+                          <span>Các quyết định cốt lõi đã chốt:</span>
                         </span>
                         <div className="grid gap-2">
                           {selectedNote.summary.key_decisions.map((decision, dIdx) => (
@@ -681,8 +706,9 @@ export const AINotesModal: React.FC = () => {
                     {selectedNote.summary.action_items?.length > 0 && (
                       <div className="space-y-2">
                         <div className="flex items-center justify-between">
-                          <span className="text-xs font-bold uppercase tracking-wider text-slate-700">
-                            ⚡ Đầu việc cần làm (Action Items):
+                          <span className="text-xs font-bold uppercase tracking-wider text-slate-700 flex items-center gap-1.5">
+                            <Zap className="h-3.5 w-3.5 text-indigo-600 fill-indigo-600" />
+                            <span>Đầu việc cần làm (Action Items):</span>
                           </span>
                           <span className="text-[11px] text-slate-500">
                             Bấm nút để chuyển thẳng lên Kanban Board
