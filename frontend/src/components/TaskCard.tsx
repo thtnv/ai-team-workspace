@@ -17,6 +17,7 @@ const TaskCardComponent: React.FC<TaskCardProps> = ({ task }) => {
   const lockedByUser = useStore((s) => s.lockedTasks[task.id]);
   const currentUserName = useStore((s) => s.currentUser?.full_name);
   const currentBoardId = useStore((s) => s.currentBoard?.id);
+  const densityMode = useStore((s) => s.densityMode);
 
   const {
     attributes,
@@ -39,6 +40,8 @@ const TaskCardComponent: React.FC<TaskCardProps> = ({ task }) => {
   };
 
   const isLockedByOther = Boolean(lockedByUser && lockedByUser !== currentUserName);
+  const pri = PRIORITY_CONFIG[task.priority] || PRIORITY_CONFIG.medium;
+  const isCompact = densityMode === 'compact';
 
   const totalChecklists = task.checklists?.length || 0;
   const completedChecklists = task.checklists?.filter((c) => c.is_done).length || 0;
@@ -59,7 +62,9 @@ const TaskCardComponent: React.FC<TaskCardProps> = ({ task }) => {
       {...attributes}
       {...listeners}
       onClick={handleCardClick}
-      className={`group relative rounded-xl border p-4 transition-all duration-150 select-none cursor-grab active:cursor-grabbing ${
+      className={`group relative rounded-xl border border-l-4 transition-all duration-150 select-none cursor-grab active:cursor-grabbing ${
+        pri.accentBorder
+      } ${isCompact ? 'p-2.5' : 'p-3.5'} ${
         isDragging
           ? 'opacity-30 shadow-2xl ring-2 ring-[#84CC16] scale-102 z-50 bg-white'
           : 'bg-white border-slate-200 hover:border-slate-300 hover:shadow-md'
@@ -67,27 +72,27 @@ const TaskCardComponent: React.FC<TaskCardProps> = ({ task }) => {
     >
       {/* Remote Lock Indicator */}
       {isLockedByOther && (
-        <div className="mb-2 flex items-center gap-1.5 rounded-md bg-amber-100 border border-amber-300 px-2 py-0.5 text-[10px] font-bold text-amber-800">
+        <div className="mb-1.5 flex items-center gap-1.5 rounded-md bg-amber-100 border border-amber-300 px-2 py-0.5 text-[10px] font-bold text-amber-800">
           <Lock className="h-3 w-3 animate-pulse text-amber-600" />
           <span>{lockedByUser} đang xem...</span>
         </div>
       )}
 
       {/* Header: Priority & AI Badge & Grip Icon */}
-      <div className="flex items-center justify-between gap-2 mb-2">
+      <div className={`flex items-center justify-between gap-2 ${isCompact ? 'mb-1.5' : 'mb-2'}`}>
         <div className="flex items-center gap-1.5 flex-wrap">
           <span
             className={`inline-flex items-center rounded-md border px-2 py-0.5 text-[10px] uppercase tracking-wider shadow-2xs ${
-              PRIORITY_CONFIG[task.priority]?.boxClass || PRIORITY_CONFIG.medium.boxClass
+              pri.boxClass
             }`}
           >
-            {PRIORITY_CONFIG[task.priority]?.label || task.priority}
+            {pri.label}
           </span>
 
           {task.ai_generated && (
             <span
               title="Được phân rã bởi AI Gemini"
-              className="inline-flex items-center gap-1 rounded-md border border-[#C4F000] bg-[#D4FF00]/50 px-1.5 py-0.5 text-[10px] font-extrabold text-slate-950"
+              className="inline-flex items-center gap-1 rounded-md border border-[#C4F000] bg-[#D4FF00]/50 px-1.5 py-0.2 text-[9px] font-extrabold text-slate-950"
             >
               <Sparkles className="h-2.5 w-2.5" />
               <span>AI</span>
@@ -103,12 +108,16 @@ const TaskCardComponent: React.FC<TaskCardProps> = ({ task }) => {
 
       {/* Title & Description */}
       <div>
-        <h4 className="text-sm font-bold text-slate-900 group-hover:text-emerald-700 transition line-clamp-2 leading-snug">
+        <h4
+          className={`text-xs font-bold text-slate-900 group-hover:text-emerald-700 transition leading-snug ${
+            isCompact ? 'line-clamp-1' : 'line-clamp-2'
+          }`}
+        >
           {task.title}
         </h4>
 
-        {task.description && (
-          <p className="mt-1.5 text-xs text-slate-600 line-clamp-2 leading-relaxed">
+        {!isCompact && task.description && (
+          <p className="mt-1 text-[11px] text-slate-600 line-clamp-2 leading-relaxed">
             {task.description}
           </p>
         )}
@@ -116,8 +125,8 @@ const TaskCardComponent: React.FC<TaskCardProps> = ({ task }) => {
 
       {/* Checklist Progress Bar */}
       {totalChecklists > 0 && (
-        <div className="mt-3">
-          <div className="flex items-center justify-between text-[11px] text-slate-600 mb-1">
+        <div className={isCompact ? 'mt-2' : 'mt-2.5'}>
+          <div className="flex items-center justify-between text-[10px] text-slate-600 mb-0.5">
             <span className="flex items-center gap-1 font-medium">
               <CheckSquare className="h-3 w-3 text-slate-400" />
               <span>Checklist</span>
@@ -138,26 +147,36 @@ const TaskCardComponent: React.FC<TaskCardProps> = ({ task }) => {
       )}
 
       {/* Footer: Tags & Due Date */}
-      <div className="mt-3 flex items-center justify-between pt-2 border-t border-slate-100 text-[11px]">
+      <div
+        className={`flex items-center justify-between border-t border-slate-100 text-[10px] ${
+          isCompact ? 'mt-2 pt-1.5' : 'mt-2.5 pt-2'
+        }`}
+      >
         {/* Tags */}
         <div className="flex items-center gap-1 overflow-hidden">
-          {task.tags && task.tags.slice(0, 2).map((tag, idx) => (
-            <span
-              key={idx}
-              className="rounded-md bg-slate-100 border border-slate-200 px-1.5 py-0.5 text-[10px] text-slate-700 font-mono font-medium"
-            >
-              #{tag}
+          {task.tags &&
+            task.tags.slice(0, isCompact ? 1 : 2).map((tag, idx) => (
+              <span
+                key={idx}
+                className="rounded-md bg-slate-100 border border-slate-200 px-1.5 py-0.5 text-[9px] text-slate-700 font-mono font-medium"
+              >
+                #{tag}
+              </span>
+            ))}
+          {task.tags && task.tags.length > (isCompact ? 1 : 2) && (
+            <span className="text-[9px] text-slate-500 font-semibold">
+              +{task.tags.length - (isCompact ? 1 : 2)}
             </span>
-          ))}
-          {task.tags && task.tags.length > 2 && (
-            <span className="text-[10px] text-slate-500 font-semibold">+{task.tags.length - 2}</span>
           )}
         </div>
 
         {/* Right meta: Comments & Due Date */}
         <div className="flex items-center gap-2 text-slate-500 font-mono text-[10px] font-medium">
           {task.comments && task.comments.length > 0 && (
-            <div className="flex items-center gap-0.5 text-slate-600 font-bold" title={`${task.comments.length} bình luận`}>
+            <div
+              className="flex items-center gap-0.5 text-slate-600 font-bold"
+              title={`${task.comments.length} bình luận`}
+            >
               <MessageSquare className="h-3 w-3 text-slate-400" />
               <span>{task.comments.length}</span>
             </div>

@@ -15,7 +15,7 @@ import {
   AlertCircle,
   Tag,
 } from 'lucide-react';
-import { Task, Priority, PRIORITY_CONFIG } from '@/types';
+import { Task, Priority, PRIORITY_CONFIG, sortTasksList } from '@/types';
 
 export const ListView: React.FC = () => {
   const {
@@ -26,6 +26,7 @@ export const ListView: React.FC = () => {
     selectedPriority,
     selectedTag,
     filterMyTasksOnly,
+    sortBy,
     setSelectedTaskForDetail,
     setCreateTaskOpen,
   } = useStore();
@@ -70,9 +71,10 @@ export const ListView: React.FC = () => {
   return (
     <div className="flex-1 min-h-0 w-full overflow-y-auto bg-slate-50 p-4 sm:p-6 space-y-6">
       {columns.map((col) => {
-        const colTasks = filteredTasks
-          .filter((t) => t.column_id === col.id)
-          .sort((a, b) => a.order - b.order);
+        const colTasks = sortTasksList(
+          filteredTasks.filter((t) => t.column_id === col.id),
+          sortBy
+        );
 
         const isCollapsed = Boolean(collapsedCols[col.id]);
 
@@ -140,7 +142,9 @@ export const ListView: React.FC = () => {
                       <div
                         key={task.id}
                         onClick={() => setSelectedTaskForDetail(task)}
-                        className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 px-4 py-3 hover:bg-slate-50/80 transition cursor-pointer group"
+                        className={`flex flex-col sm:flex-row sm:items-center justify-between gap-3 px-4 py-2.5 hover:bg-slate-50/80 transition cursor-pointer group border-l-4 ${
+                          pri.accentBorder || 'border-l-slate-300'
+                        }`}
                       >
                         {/* Left: Status Icon, Title, AI Badge, Tags */}
                         <div className="flex items-center gap-3 min-w-0 flex-1">

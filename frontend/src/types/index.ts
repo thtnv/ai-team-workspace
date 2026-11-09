@@ -1,11 +1,15 @@
 export type Priority = 'low' | 'medium' | 'high' | 'urgent';
 
+export type SortOption = 'manual' | 'priority' | 'due_date' | 'newest' | 'title';
+export type DensityMode = 'comfortable' | 'compact';
+
 export interface PriorityOption {
   value: Priority;
   label: string;
   boxClass: string;
   hoverClass: string;
   activeClass: string;
+  accentBorder: string;
 }
 
 export const PRIORITY_CONFIG: Record<Priority, PriorityOption> = {
@@ -15,6 +19,7 @@ export const PRIORITY_CONFIG: Record<Priority, PriorityOption> = {
     boxClass: 'bg-rose-100 text-rose-800 border-rose-300 font-bold',
     hoverClass: 'hover:bg-rose-200 hover:border-rose-400',
     activeClass: 'bg-rose-100 text-rose-800 border-rose-500 ring-2 ring-rose-400 font-bold',
+    accentBorder: 'border-l-rose-500',
   },
   high: {
     value: 'high',
@@ -22,6 +27,7 @@ export const PRIORITY_CONFIG: Record<Priority, PriorityOption> = {
     boxClass: 'bg-orange-100 text-orange-800 border-orange-300 font-bold',
     hoverClass: 'hover:bg-orange-200 hover:border-orange-400',
     activeClass: 'bg-orange-100 text-orange-800 border-orange-500 ring-2 ring-orange-400 font-bold',
+    accentBorder: 'border-l-orange-500',
   },
   medium: {
     value: 'medium',
@@ -29,6 +35,7 @@ export const PRIORITY_CONFIG: Record<Priority, PriorityOption> = {
     boxClass: 'bg-amber-100 text-amber-800 border-amber-300 font-semibold',
     hoverClass: 'hover:bg-amber-200 hover:border-amber-400',
     activeClass: 'bg-amber-100 text-amber-800 border-amber-500 ring-2 ring-amber-400 font-semibold',
+    accentBorder: 'border-l-amber-400',
   },
   low: {
     value: 'low',
@@ -36,6 +43,7 @@ export const PRIORITY_CONFIG: Record<Priority, PriorityOption> = {
     boxClass: 'bg-slate-100 text-slate-700 border-slate-300 font-medium',
     hoverClass: 'hover:bg-slate-200 hover:border-slate-400',
     activeClass: 'bg-slate-100 text-slate-700 border-slate-500 ring-2 ring-slate-400 font-medium',
+    accentBorder: 'border-l-slate-300',
   },
 };
 
@@ -165,4 +173,43 @@ export interface TaskBreakdownResponse {
     checklists: { title: string }[];
   }[];
 }
+
+export const PRIORITY_WEIGHT: Record<Priority, number> = {
+  urgent: 4,
+  high: 3,
+  medium: 2,
+  low: 1,
+};
+
+export const sortTasksList = (tasksList: Task[], sortBy: SortOption): Task[] => {
+  return [...tasksList].sort((a, b) => {
+    if (sortBy === 'priority') {
+      const weightA = PRIORITY_WEIGHT[a.priority] || 0;
+      const weightB = PRIORITY_WEIGHT[b.priority] || 0;
+      if (weightB !== weightA) {
+        return weightB - weightA;
+      }
+      if (a.due_date && b.due_date) return a.due_date.localeCompare(b.due_date);
+      if (a.due_date) return -1;
+      if (b.due_date) return 1;
+      return a.order - b.order;
+    }
+    if (sortBy === 'due_date') {
+      if (a.due_date && b.due_date) return a.due_date.localeCompare(b.due_date);
+      if (a.due_date) return -1;
+      if (b.due_date) return 1;
+      return a.order - b.order;
+    }
+    if (sortBy === 'newest') {
+      const timeA = a.created_at ? new Date(a.created_at).getTime() : 0;
+      const timeB = b.created_at ? new Date(b.created_at).getTime() : 0;
+      return timeB - timeA;
+    }
+    if (sortBy === 'title') {
+      return a.title.localeCompare(b.title);
+    }
+    return a.order - b.order;
+  });
+};
+
 

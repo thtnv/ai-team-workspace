@@ -1,5 +1,5 @@
 import { create } from 'zustand';
-import { User, Workspace, Board, Task, TaskComment, Note, PresenceUser } from '@/types';
+import { User, Workspace, Board, Task, TaskComment, Note, PresenceUser, SortOption, DensityMode } from '@/types';
 
 interface AppState {
   // Auth & Core Context
@@ -37,6 +37,8 @@ interface AppState {
   selectedPriority: string | null;
   selectedTag: string | null;
   filterMyTasksOnly: boolean;
+  sortBy: SortOption;
+  densityMode: DensityMode;
 
   // Actions
   setCurrentUser: (user: User | null) => void;
@@ -70,6 +72,8 @@ interface AppState {
   setSelectedPriority: (priority: string | null) => void;
   setSelectedTag: (tag: string | null) => void;
   setFilterMyTasksOnly: (enabled: boolean) => void;
+  setSortBy: (sort: SortOption) => void;
+  setDensityMode: (mode: DensityMode) => void;
   resetFilters: () => void;
 
   // View action
@@ -124,6 +128,8 @@ export const useStore = create<AppState>((set, get) => ({
   selectedPriority: null,
   selectedTag: null,
   filterMyTasksOnly: false,
+  sortBy: 'manual',
+  densityMode: 'comfortable',
 
   setCurrentUser: (user) => set({ currentUser: user }),
   setWorkspaces: (workspaces) => set({ workspaces }),
@@ -206,12 +212,15 @@ export const useStore = create<AppState>((set, get) => ({
   setSelectedPriority: (priority) => set({ selectedPriority: priority }),
   setSelectedTag: (tag) => set({ selectedTag: tag }),
   setFilterMyTasksOnly: (enabled) => set({ filterMyTasksOnly: enabled }),
+  setSortBy: (sortBy) => set({ sortBy }),
+  setDensityMode: (densityMode) => set({ densityMode }),
   resetFilters: () =>
     set({
       searchQuery: '',
       selectedPriority: null,
       selectedTag: null,
       filterMyTasksOnly: false,
+      sortBy: 'manual',
     }),
 
   setCurrentView: (view) => set({ currentView: view }),

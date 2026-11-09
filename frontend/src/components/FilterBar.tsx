@@ -12,8 +12,20 @@ import {
   RotateCcw,
   SlidersHorizontal,
   ChevronDown,
+  ArrowUpDown,
+  Check,
+  Maximize2,
+  Minimize2,
 } from 'lucide-react';
-import { Priority, PRIORITY_CONFIG } from '@/types';
+import { Priority, PRIORITY_CONFIG, SortOption } from '@/types';
+
+const SORT_OPTIONS: { value: SortOption; label: string }[] = [
+  { value: 'manual', label: 'Thứ tự kéo thả' },
+  { value: 'priority', label: 'Độ ưu tiên cao nhất' },
+  { value: 'due_date', label: 'Hạn chót gần nhất' },
+  { value: 'newest', label: 'Mới tạo gần nhất' },
+  { value: 'title', label: 'Tên việc A-Z' },
+];
 
 export const FilterBar: React.FC = () => {
   const {
@@ -27,21 +39,31 @@ export const FilterBar: React.FC = () => {
     setSelectedTag,
     filterMyTasksOnly,
     setFilterMyTasksOnly,
+    sortBy,
+    setSortBy,
+    densityMode,
+    setDensityMode,
     resetFilters,
   } = useStore();
 
   const [isPriorityMenuOpen, setIsPriorityMenuOpen] = useState(false);
+  const [isSortMenuOpen, setIsSortMenuOpen] = useState(false);
   const priorityMenuRef = useRef<HTMLDivElement>(null);
+  const sortMenuRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
     const handleClickOutside = (e: MouseEvent) => {
       if (priorityMenuRef.current && !priorityMenuRef.current.contains(e.target as Node)) {
         setIsPriorityMenuOpen(false);
       }
+      if (sortMenuRef.current && !sortMenuRef.current.contains(e.target as Node)) {
+        setIsSortMenuOpen(false);
+      }
     };
     const handleKeyDown = (e: KeyboardEvent) => {
       if (e.key === 'Escape') {
         setIsPriorityMenuOpen(false);
+        setIsSortMenuOpen(false);
       }
     };
     document.addEventListener('mousedown', handleClickOutside);
@@ -68,7 +90,8 @@ export const FilterBar: React.FC = () => {
     (searchQuery.trim() ? 1 : 0) +
     (selectedPriority ? 1 : 0) +
     (selectedTag ? 1 : 0) +
-    (filterMyTasksOnly ? 1 : 0);
+    (filterMyTasksOnly ? 1 : 0) +
+    (sortBy !== 'manual' ? 1 : 0);
 
   // Filtered task count
   const filteredTasksCount = useMemo(() => {
@@ -192,6 +215,50 @@ export const FilterBar: React.FC = () => {
           )}
         </div>
 
+        {/* Smart Sort Dropdown */}
+        <div className="relative hidden sm:block" ref={sortMenuRef}>
+          <button
+            type="button"
+            onClick={() => setIsSortMenuOpen(!isSortMenuOpen)}
+            className={`inline-flex items-center gap-1.5 rounded-lg border px-2.5 py-1 text-[11px] font-semibold transition cursor-pointer shadow-2xs ${
+              sortBy !== 'manual'
+                ? 'border-indigo-300 bg-indigo-50 text-indigo-700'
+                : 'border-slate-200 bg-white text-slate-700 hover:bg-slate-50'
+            }`}
+            title="Sắp xếp thông minh khi có nhiều task cùng độ ưu tiên"
+          >
+            <ArrowUpDown className="h-3 w-3 text-slate-500" />
+            <span>Sắp xếp: {SORT_OPTIONS.find((s) => s.value === sortBy)?.label}</span>
+            <ChevronDown className={`h-3 w-3 text-slate-400 transition-transform ${isSortMenuOpen ? 'rotate-180' : ''}`} />
+          </button>
+
+          {isSortMenuOpen && (
+            <div className="absolute left-0 top-full mt-1.5 z-50 w-52 rounded-xl border border-slate-200 bg-white p-1.5 shadow-2xl ring-1 ring-black/5 animate-in fade-in zoom-in-95 duration-100 space-y-1">
+              <div className="px-2 py-1 text-[10px] font-bold uppercase tracking-wider text-slate-400">
+                Tiêu chí sắp xếp
+              </div>
+              {SORT_OPTIONS.map((opt) => (
+                <button
+                  key={opt.value}
+                  type="button"
+                  onClick={() => {
+                    setSortBy(opt.value);
+                    setIsSortMenuOpen(false);
+                  }}
+                  className={`w-full flex items-center justify-between rounded-lg px-2.5 py-1.5 text-xs text-left transition cursor-pointer ${
+                    sortBy === opt.value
+                      ? 'bg-slate-900 text-white font-bold'
+                      : 'text-slate-700 hover:bg-slate-100 font-medium'
+                  }`}
+                >
+                  <span>{opt.label}</span>
+                  {sortBy === opt.value && <Check className="h-3.5 w-3.5 text-[#D4FF00]" />}
+                </button>
+              ))}
+            </div>
+          )}
+        </div>
+
         {/* Tag Filter (if tags exist) */}
         {availableTags.length > 0 && (
           <div className="hidden md:flex items-center gap-1">
@@ -245,8 +312,38 @@ export const FilterBar: React.FC = () => {
         )}
       </div>
 
-      {/* Right: Task Counter */}
-      <div className="flex items-center gap-2 text-slate-500 text-[11px] font-medium shrink-0">
+      {/* Right: Density Toggle & Task Counter */}
+      <div className="flex items-center gap-3 text-slate-500 text-[11px] font-medium shrink-0">
+        {/* Density Mode: Comfortable vs Compact */}
+        <div className="hidden sm:flex items-center rounded-lg border border-slate-200 bg-slate-100/80 p-0.5 text-xs font-semibold">
+          <button
+            type="button"
+            onClick={() => setDensityMode('comfortable')}
+            className={`flex items-center gap-1 rounded-md px-2 py-0.5 transition cursor-pointer text-[10px] ${
+              densityMode === 'comfortable'
+                ? 'bg-white text-slate-900 shadow-2xs font-bold'
+                : 'text-slate-500 hover:text-slate-800'
+            }`}
+            title="Mật độ hiển thị: Chi tiết"
+          >
+            <Maximize2 className="h-3 w-3" />
+            <span className="hidden xl:inline">Chi tiết</span>
+          </button>
+          <button
+            type="button"
+            onClick={() => setDensityMode('compact')}
+            className={`flex items-center gap-1 rounded-md px-2 py-0.5 transition cursor-pointer text-[10px] ${
+              densityMode === 'compact'
+                ? 'bg-white text-slate-900 shadow-2xs font-bold'
+                : 'text-slate-500 hover:text-slate-800'
+            }`}
+            title="Mật độ hiển thị: Thu gọn để nhìn được nhiều việc hơn (dài ra)"
+          >
+            <Minimize2 className="h-3 w-3" />
+            <span className="hidden xl:inline">Thu gọn</span>
+          </button>
+        </div>
+
         <span>
           Hiển thị <strong className="text-slate-900 font-mono">{filteredTasksCount}</strong> / {tasks.length} việc
         </span>

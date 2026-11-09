@@ -16,7 +16,7 @@ import confetti from 'canvas-confetti';
 import { useStore } from '@/store/useStore';
 import { KanbanColumn } from './KanbanColumn';
 import { TaskCard } from './TaskCard';
-import { Task } from '@/types';
+import { Task, sortTasksList } from '@/types';
 import { socketService } from '@/lib/socket';
 import { api } from '@/lib/api';
 
@@ -39,6 +39,7 @@ export const KanbanBoard: React.FC = () => {
     selectedPriority,
     selectedTag,
     filterMyTasksOnly,
+    sortBy,
   } = useStore();
 
   const [activeTask, setActiveTask] = useState<Task | null>(null);
@@ -276,9 +277,10 @@ export const KanbanBoard: React.FC = () => {
         {/* Responsive Grid with 4 equal columns fitting 100% of width, NO horizontal scroll */}
         <div className="grid grid-cols-4 gap-3 h-full min-h-0 w-full items-stretch">
           {columns.map((column) => {
-            const columnTasks = filteredTasks
-              .filter((t) => t.column_id === column.id)
-              .sort((a, b) => a.order - b.order);
+            const columnTasks = sortTasksList(
+              filteredTasks.filter((t) => t.column_id === column.id),
+              sortBy
+            );
 
             return (
               <KanbanColumn
