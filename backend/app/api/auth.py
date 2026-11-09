@@ -167,13 +167,43 @@ async def social_login(req: SocialLoginRequest):
     else:
         user_id = str(user["_id"])
         update_fields = {}
-        if not user.get("avatar_url") and req.avatar_url:
+        # Upgrade avatar if real OAuth avatar (Google lh3 or GitHub) is provided
+        if req.avatar_url and (
+            not user.get("avatar_url")
+            or "dicebear.com" in user.get("avatar_url", "")
+            or req.avatar_url != user.get("avatar_url")
+        ):
             update_fields["avatar_url"] = req.avatar_url
         if not user.get("auth_provider"):
             update_fields["auth_provider"] = req.provider
+        if req.full_name and (not user.get("full_name") or user.get("full_name") == user.get("email")):
+            update_fields["full_name"] = req.full_name
+
         if update_fields:
+            update_fields["updated_at"] = now_iso
             await users_col.update_one({"_id": user["_id"]}, {"$set": update_fields})
             user.update(update_fields)
+
+            # Sync updated avatar and name into workspaces where user is a member
+            workspaces_col = db_manager.get_collection("workspaces")
+            cursor = workspaces_col.find({"members.user_id": user_id})
+            user_workspaces = await cursor.to_list(100)
+            for ws in user_workspaces:
+                w_members = ws.get("members", [])
+                changed = False
+                for m in w_members:
+                    if m.get("user_id") == user_id:
+                        if req.avatar_url and m.get("avatar_url") != req.avatar_url:
+                            m["avatar_url"] = req.avatar_url
+                            changed = True
+                        if req.full_name and m.get("full_name") != req.full_name:
+                            m["full_name"] = req.full_name
+                            changed = True
+                if changed:
+                    await workspaces_col.update_one(
+                        {"_id": ws["_id"]},
+                        {"$set": {"members": w_members, "updated_at": now_iso}}
+                    )
 
     token = create_access_token(subject=user_id)
     return Token(
@@ -313,10 +343,27 @@ async def google_auth(req: GoogleAuthRequest):
                 with urllib.request.urlopen(req_token, timeout=8) as res:
                     token_data = json.loads(res.read().decode("utf-8"))
                     id_token_jwt = token_data.get("id_token")
+                    access_token = token_data.get("access_token")
                     payload = jwt.decode(id_token_jwt, options={"verify_signature": False})
                     email = payload.get("email")
                     name = payload.get("name") or email.split("@")[0]
                     picture = payload.get("picture")
+
+                    # If picture is missing or low-res in id_token, query official Google UserInfo API
+                    if access_token and (not picture or "s96-c" in str(picture)):
+                        try:
+                            u_req = urllib.request.Request(
+                                "https://www.googleapis.com/oauth2/v3/userinfo",
+                                headers={"Authorization": f"Bearer {access_token}", "User-Agent": "SyncPulse-AI"}
+                            )
+                            with urllib.request.urlopen(u_req, timeout=5) as u_res:
+                                u_info = json.loads(u_res.read().decode("utf-8"))
+                                if u_info.get("picture"):
+                                    picture = u_info["picture"]
+                                if u_info.get("name"):
+                                    name = u_info["name"]
+                        except Exception as ue:
+                            logger.warning(f"Could not fetch userinfo from Google: {ue}")
             except urllib.error.HTTPError as he:
                 try:
                     err_body = he.read().decode("utf-8")

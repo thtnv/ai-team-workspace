@@ -24,11 +24,40 @@ router = APIRouter(prefix="/workspaces", tags=["Workspaces"])
 async def list_workspaces(current_user: dict = Depends(get_current_user)):
     user_id = str(current_user["_id"])
     workspaces_col = db_manager.get_collection("workspaces")
+    users_col = db_manager.get_collection("users")
+
     cursor = workspaces_col.find({"members.user_id": user_id})
     items = await cursor.to_list(100)
 
+    # Auto Self-Healing: Prune any member whose user document was deleted from DB
+    all_member_ids = list({
+        m.get("user_id")
+        for item in items
+        for m in item.get("members", [])
+        if m.get("user_id") and not str(m.get("user_id", "")).startswith("invited-")
+    })
+
+    existing_uids = set()
+    if all_member_ids:
+        found_users = await users_col.find({"_id": {"$in": all_member_ids}}).to_list(len(all_member_ids))
+        existing_uids = {str(u["_id"]) for u in found_users}
+
     res = []
     for item in items:
+        raw_members = item.get("members", [])
+        valid_members = [
+            m for m in raw_members
+            if m.get("user_id") in existing_uids or str(m.get("user_id", "")).startswith("invited-")
+        ]
+
+        if len(valid_members) != len(raw_members):
+            now_iso = datetime.now(timezone.utc).isoformat()
+            await workspaces_col.update_one(
+                {"_id": item["_id"]},
+                {"$set": {"members": valid_members, "updated_at": now_iso}}
+            )
+            item["members"] = valid_members
+
         res.append(WorkspaceResponse(
             id=str(item["_id"]),
             name=item["name"],

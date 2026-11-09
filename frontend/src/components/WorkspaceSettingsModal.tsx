@@ -374,7 +374,7 @@ export const WorkspaceSettingsModal: React.FC = () => {
                               <div className="flex items-center gap-2.5">
                                 <div className="h-8 w-8 rounded-full bg-slate-200 ring-1 ring-slate-300 overflow-hidden shrink-0">
                                   {member.avatar_url ? (
-                                    <img src={member.avatar_url} alt={member.full_name} className="h-full w-full object-cover" />
+                                    <img src={member.avatar_url} alt={member.full_name} referrerPolicy="no-referrer" className="h-full w-full object-cover" />
                                   ) : (
                                     <div className="flex h-full w-full items-center justify-center font-bold text-slate-700 text-xs">
                                       {member.full_name?.charAt(0) || 'U'}
@@ -757,3 +757,4 @@ export const WorkspaceSettingsModal: React.FC = () => {
     </div>
   );
 };
+

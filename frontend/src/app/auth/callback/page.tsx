@@ -173,6 +173,7 @@ function CallbackContent() {
                   <img
                     src={authUserInfo.avatar_url}
                     alt={authUserInfo.full_name}
+                    referrerPolicy="no-referrer"
                     className="h-7 w-7 rounded-full border border-slate-300"
                   />
                 )}

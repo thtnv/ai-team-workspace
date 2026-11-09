@@ -135,7 +135,7 @@ export const Navbar: React.FC = () => {
                 >
                   {u.avatar_url ? (
                     // eslint-disable-next-line @next/next/no-img-element
-                    <img src={u.avatar_url} alt={u.name} className="h-full w-full object-cover" />
+                    <img src={u.avatar_url} alt={u.name} referrerPolicy="no-referrer" className="h-full w-full object-cover" />
                   ) : (
                     <div className="flex h-full w-full items-center justify-center bg-[#D4FF00] text-[9px] font-bold text-slate-950">
                       {u.name?.charAt(0) || 'U'}
@@ -205,7 +205,7 @@ export const Navbar: React.FC = () => {
                 <div className="h-6 w-6 rounded-full bg-slate-200 ring-1 ring-slate-300 overflow-hidden shadow-2xs">
                   {currentUser.avatar_url ? (
                     // eslint-disable-next-line @next/next/no-img-element
-                    <img src={currentUser.avatar_url} alt={currentUser.full_name} className="h-full w-full object-cover" />
+                    <img src={currentUser.avatar_url} alt={currentUser.full_name} referrerPolicy="no-referrer" className="h-full w-full object-cover" />
                   ) : (
                     <div className="flex h-full w-full items-center justify-center text-[10px] font-bold text-slate-800">
                       {currentUser.full_name?.charAt(0) || 'U'}

@@ -250,7 +250,7 @@ export const InviteModal: React.FC = () => {
                     <div className="flex items-center gap-2.5">
                       <div className="h-7 w-7 rounded-full overflow-hidden bg-slate-200 shrink-0">
                         {m.avatar_url ? (
-                          <img src={m.avatar_url} alt={m.full_name} className="h-full w-full object-cover" />
+                          <img src={m.avatar_url} alt={m.full_name} referrerPolicy="no-referrer" className="h-full w-full object-cover" />
                         ) : (
                           <div className="flex h-full w-full items-center justify-center bg-[#D4FF00] text-[10px] font-bold text-slate-950">
                             {m.full_name?.charAt(0) || 'U'}

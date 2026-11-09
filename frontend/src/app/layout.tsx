@@ -15,6 +15,7 @@ const geistMono = Geist_Mono({
 export const metadata: Metadata = {
   title: "SyncPulse AI — Real-time Team Workspace & Task Management",
   description: "Next-gen collaborative Kanban board with Real-time WebSockets, MongoDB and Google Gemini AI Assistant.",
+  referrer: "no-referrer-when-downgrade",
 };
 
 export default function RootLayout({
