@@ -107,6 +107,50 @@ class ApiClient {
     return data;
   }
 
+  async exchangeGoogleCode(code: string, redirect_uri?: string): Promise<{ access_token: string; user: User }> {
+    const data = await this.request<{ access_token: string; user: User }>('/api/auth/google', {
+      method: 'POST',
+      body: JSON.stringify({ code, redirect_uri }),
+    });
+    this.setToken(data.access_token);
+    return data;
+  }
+
+  async exchangeGithubCode(code: string, redirect_uri?: string): Promise<{ access_token: string; user: User }> {
+    const data = await this.request<{ access_token: string; user: User }>('/api/auth/github', {
+      method: 'POST',
+      body: JSON.stringify({ code, redirect_uri }),
+    });
+    this.setToken(data.access_token);
+    return data;
+  }
+
+  async getOAuthConfig(): Promise<{
+    google_client_id: string;
+    github_client_id: string;
+    google_enabled: boolean;
+    github_enabled: boolean;
+  }> {
+    return this.request('/api/auth/oauth-config');
+  }
+
+  async saveOAuthConfig(config: {
+    google_client_id?: string;
+    google_client_secret?: string;
+    github_client_id?: string;
+    github_client_secret?: string;
+  }): Promise<{
+    google_client_id: string;
+    github_client_id: string;
+    google_enabled: boolean;
+    github_enabled: boolean;
+  }> {
+    return this.request('/api/auth/oauth-config', {
+      method: 'POST',
+      body: JSON.stringify(config),
+    });
+  }
+
   async getMe(): Promise<User> {
     return this.request<User>('/api/auth/me');
   }

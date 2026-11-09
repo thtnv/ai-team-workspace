@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { useStore } from '@/store/useStore';
 import { api } from '@/lib/api';
 import { socketService } from '@/lib/socket';
@@ -10,13 +10,15 @@ import {
   Mail,
   User,
   Loader2,
-  LogIn,
-  UserPlus,
   AlertCircle,
   KeyRound,
-  CheckCircle2,
   ArrowRight,
+  ExternalLink,
+  Copy,
+  Check,
+  CheckCircle2,
   ShieldCheck,
+  Settings2,
 } from 'lucide-react';
 
 export const LoginModal: React.FC = () => {
@@ -31,7 +33,6 @@ export const LoginModal: React.FC = () => {
     setTasks,
     setNotes,
     setOnboardingOpen,
-    setWalkthroughOpen,
   } = useStore();
 
   const [mode, setMode] = useState<'login' | 'register'>('login');
@@ -41,17 +42,36 @@ export const LoginModal: React.FC = () => {
   const [loading, setLoading] = useState(false);
   const [socialLoading, setSocialLoading] = useState<string | null>(null);
   const [errorMessage, setErrorMessage] = useState('');
+  const [infoMessage, setInfoMessage] = useState('');
 
-  // Interactive Social OAuth Dialog States
-  const [showGoogleDialog, setShowGoogleDialog] = useState(false);
-  const [googleEmailInput, setGoogleEmailInput] = useState('thtnv9876@gmail.com');
-  const [googleNameInput, setGoogleNameInput] = useState('Nguyễn Văn Viên');
+  // Real OAuth configuration from backend
+  const [oauthConfig, setOAuthConfig] = useState<{
+    google_client_id: string;
+    github_client_id: string;
+    google_enabled: boolean;
+    github_enabled: boolean;
+  } | null>(null);
 
-  const [showGithubDialog, setShowGithubDialog] = useState(false);
-  const [githubUsernameInput, setGithubUsernameInput] = useState('thtnv');
+  // Setup modal when credentials are not yet configured
+  const [showConfigModal, setShowConfigModal] = useState<'google' | 'github' | null>(null);
+  const [cfgClientId, setCfgClientId] = useState('');
+  const [cfgClientSecret, setCfgClientSecret] = useState('');
+  const [copiedCallback, setCopiedCallback] = useState(false);
+  const [savingConfig, setSavingConfig] = useState(false);
 
-  const [showSsoDialog, setShowSsoDialog] = useState(false);
-  const [ssoDomainInput, setSsoDomainInput] = useState('company.com');
+  // Fetch live OAuth configuration on modal open
+  useEffect(() => {
+    if (!isLoginModalOpen) return;
+    const fetchConfig = async () => {
+      try {
+        const cfg = await api.getOAuthConfig();
+        setOAuthConfig(cfg);
+      } catch (err) {
+        console.warn('Could not load OAuth config:', err);
+      }
+    };
+    fetchConfig();
+  }, [isLoginModalOpen]);
 
   if (!isLoginModalOpen) return null;
 
@@ -101,18 +121,17 @@ export const LoginModal: React.FC = () => {
     }
     await refreshWorkspaceData(data.user);
     setLoginModalOpen(false);
-    setShowGoogleDialog(false);
-    setShowGithubDialog(false);
-    setShowSsoDialog(false);
+    setShowConfigModal(null);
     setEmail('');
     setPassword('');
     setFullName('');
   };
 
-  // 1. Submit email/password
+  // 1. Submit email/password (100% Real Database Auth)
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setErrorMessage('');
+    setInfoMessage('');
     if (!email || !password) {
       setErrorMessage('Vui lòng nhập đầy đủ email và mật khẩu.');
       return;
@@ -133,82 +152,116 @@ export const LoginModal: React.FC = () => {
       }
       await completeAuth(data);
     } catch (err: any) {
-      setErrorMessage(err.message || 'Đăng nhập không thành công. Vui lòng kiểm tra lại.');
+      setErrorMessage(err.message || 'Đăng nhập không thành công. Vui lòng kiểm tra lại email/mật khẩu.');
     } finally {
       setLoading(false);
     }
   };
 
-  // 2. Google OAuth Flow
-  const handleGoogleAuth = async (customEmail?: string, customName?: string) => {
-    const finalEmail = (customEmail || googleEmailInput).trim().toLowerCase();
-    const finalName = (customName || googleNameInput).trim() || finalEmail.split('@')[0];
-    const avatar = `https://api.dicebear.com/7.x/bottts/svg?seed=${finalEmail}`;
-
-    setSocialLoading('google');
+  // 2. Real Google OAuth
+  const handleGoogleClick = async () => {
     setErrorMessage('');
-    try {
-      const data = await api.socialLogin({
-        provider: 'google',
-        email: finalEmail,
-        full_name: finalName,
-        avatar_url: avatar,
-      });
-      await completeAuth(data);
-    } catch (err: any) {
-      setErrorMessage(err.message || 'Đăng nhập Google thất bại');
-    } finally {
-      setSocialLoading(null);
+    setInfoMessage('');
+    let cfg = oauthConfig;
+    if (!cfg) {
+      try {
+        cfg = await api.getOAuthConfig();
+        setOAuthConfig(cfg);
+      } catch (e) {
+        // ignore
+      }
+    }
+
+    if (cfg && cfg.google_enabled && cfg.google_client_id) {
+      // Direct redirect to real Google OAuth
+      setSocialLoading('google');
+      const redirectUri = `${window.location.origin}/auth/callback`;
+      const googleOAuthUrl = `https://accounts.google.com/o/oauth2/v2/auth?client_id=${encodeURIComponent(
+        cfg.google_client_id
+      )}&redirect_uri=${encodeURIComponent(
+        redirectUri
+      )}&response_type=code&scope=openid%20profile%20email&state=google&access_type=offline&prompt=consent`;
+      window.location.href = googleOAuthUrl;
+    } else {
+      // Need configuration
+      setCfgClientId('');
+      setCfgClientSecret('');
+      setShowConfigModal('google');
     }
   };
 
-  // 3. GitHub OAuth Flow
-  const handleGithubAuth = async () => {
-    const username = githubUsernameInput.trim();
-    if (!username) return;
-    const finalEmail = `${username.toLowerCase()}@github.users.syncpulse.ai`;
-    const finalName = username;
-    const avatar = `https://github.com/${username}.png`;
-
-    setSocialLoading('github');
+  // 3. Real GitHub OAuth
+  const handleGithubClick = async () => {
     setErrorMessage('');
-    try {
-      const data = await api.socialLogin({
-        provider: 'github',
-        email: finalEmail,
-        full_name: finalName,
-        avatar_url: avatar,
-      });
-      await completeAuth(data);
-    } catch (err: any) {
-      setErrorMessage(err.message || 'Đăng nhập GitHub thất bại');
-    } finally {
-      setSocialLoading(null);
+    setInfoMessage('');
+    let cfg = oauthConfig;
+    if (!cfg) {
+      try {
+        cfg = await api.getOAuthConfig();
+        setOAuthConfig(cfg);
+      } catch (e) {
+        // ignore
+      }
+    }
+
+    if (cfg && cfg.github_enabled && cfg.github_client_id) {
+      // Direct redirect to real GitHub OAuth
+      setSocialLoading('github');
+      const redirectUri = `${window.location.origin}/auth/callback`;
+      const githubOAuthUrl = `https://github.com/login/oauth/authorize?client_id=${encodeURIComponent(
+        cfg.github_client_id
+      )}&redirect_uri=${encodeURIComponent(redirectUri)}&scope=read:user%20user:email&state=github`;
+      window.location.href = githubOAuthUrl;
+    } else {
+      // Need configuration
+      setCfgClientId('');
+      setCfgClientSecret('');
+      setShowConfigModal('github');
     }
   };
 
-  // 4. SAML SSO Flow
-  const handleSsoAuth = async () => {
-    const domain = ssoDomainInput.trim().toLowerCase();
-    if (!domain) return;
-    const finalEmail = `engineer@${domain}`;
-    const finalName = `Enterprise Member (${domain})`;
-    const avatar = `https://api.dicebear.com/7.x/initials/svg?seed=${domain}`;
+  // 4. Save OAuth config and immediately redirect to provider
+  const handleSaveConfigAndContinue = async () => {
+    if (!cfgClientId.trim()) {
+      setErrorMessage('Vui lòng nhập Client ID.');
+      return;
+    }
 
-    setSocialLoading('sso');
+    setSavingConfig(true);
     setErrorMessage('');
     try {
-      const data = await api.socialLogin({
-        provider: 'sso',
-        email: finalEmail,
-        full_name: finalName,
-        avatar_url: avatar,
-      });
-      await completeAuth(data);
+      const payload =
+        showConfigModal === 'google'
+          ? { google_client_id: cfgClientId.trim(), google_client_secret: cfgClientSecret.trim() }
+          : { github_client_id: cfgClientId.trim(), github_client_secret: cfgClientSecret.trim() };
+
+      const updated = await api.saveOAuthConfig(payload);
+      setOAuthConfig(updated);
+
+      const redirectUri = `${window.location.origin}/auth/callback`;
+      if (showConfigModal === 'google') {
+        window.location.href = `https://accounts.google.com/o/oauth2/v2/auth?client_id=${encodeURIComponent(
+          cfgClientId.trim()
+        )}&redirect_uri=${encodeURIComponent(
+          redirectUri
+        )}&response_type=code&scope=openid%20profile%20email&state=google&access_type=offline&prompt=consent`;
+      } else {
+        window.location.href = `https://github.com/login/oauth/authorize?client_id=${encodeURIComponent(
+          cfgClientId.trim()
+        )}&redirect_uri=${encodeURIComponent(redirectUri)}&scope=read:user%20user:email&state=github`;
+      }
     } catch (err: any) {
-      setErrorMessage(err.message || 'Đăng nhập SSO thất bại');
-    } finally {
-      setSocialLoading(null);
+      setErrorMessage(err.message || 'Không thể lưu cấu hình OAuth');
+      setSavingConfig(false);
+    }
+  };
+
+  const copyCallbackUrl = () => {
+    if (typeof window !== 'undefined') {
+      const url = `${window.location.origin}/auth/callback`;
+      navigator.clipboard.writeText(url);
+      setCopiedCallback(true);
+      setTimeout(() => setCopiedCallback(false), 2000);
     }
   };
 
@@ -217,7 +270,10 @@ export const LoginModal: React.FC = () => {
       <div className="relative flex flex-col w-full max-w-[390px] max-h-[92vh] overflow-y-auto rounded-2xl border border-slate-200 bg-white p-5 shadow-2xl animate-in zoom-in-95 duration-150">
         {/* Close Button */}
         <button
-          onClick={() => setLoginModalOpen(false)}
+          onClick={() => {
+            setLoginModalOpen(false);
+            setShowConfigModal(null);
+          }}
           className="absolute right-3 top-3 rounded-lg p-1 text-slate-400 hover:bg-slate-100 hover:text-slate-700 transition cursor-pointer"
           title="Đóng"
         >
@@ -237,12 +293,12 @@ export const LoginModal: React.FC = () => {
           </p>
         </div>
 
-        {/* Social Login Buttons (Plane & Linear Style) */}
+        {/* Real OAuth Buttons (Google & GitHub) */}
         <div className="space-y-2 mt-1">
           {/* Google Button */}
           <button
             type="button"
-            onClick={() => setShowGoogleDialog(true)}
+            onClick={handleGoogleClick}
             disabled={Boolean(socialLoading)}
             className="w-full flex items-center justify-between rounded-xl border border-slate-200 bg-white hover:bg-slate-50 hover:border-slate-300 py-2 px-3 text-xs font-bold text-slate-800 transition cursor-pointer shadow-2xs group"
           >
@@ -266,18 +322,24 @@ export const LoginModal: React.FC = () => {
                   d="M12 5.38c1.62 0 3.06.56 4.21 1.64l3.15-3.15C17.45 2.09 14.97 1 12 1 7.7 1 3.99 3.47 2.18 7.06l3.66 2.84c.87-2.6 3.3-4.52 6.16-4.52z"
                 />
               </svg>
-              <span>Tiếp tục với Google</span>
+              <span>{socialLoading === 'google' ? 'Đang chuyển đến Google...' : 'Tiếp tục với Google'}</span>
             </div>
 
-            <span className="rounded-md bg-emerald-50 border border-emerald-200 px-1.5 py-0.2 text-[8px] font-bold text-emerald-700">
-              Khuyên dùng
-            </span>
+            {oauthConfig?.google_enabled ? (
+              <span className="rounded-md bg-emerald-50 border border-emerald-200 px-1.5 py-0.2 text-[8px] font-bold text-emerald-700">
+                Sẵn sàng
+              </span>
+            ) : (
+              <span className="rounded-md bg-slate-100 border border-slate-200 px-1.5 py-0.2 text-[8px] font-bold text-slate-600">
+                Cấu hình
+              </span>
+            )}
           </button>
 
           {/* GitHub Button */}
           <button
             type="button"
-            onClick={() => setShowGithubDialog(true)}
+            onClick={handleGithubClick}
             disabled={Boolean(socialLoading)}
             className="w-full flex items-center justify-between rounded-xl border border-slate-200 bg-white hover:bg-slate-50 hover:border-slate-300 py-2 px-3 text-xs font-bold text-slate-800 transition cursor-pointer shadow-2xs group"
           >
@@ -290,29 +352,33 @@ export const LoginModal: React.FC = () => {
                   d="M12 2C6.477 2 2 6.484 2 12.017c0 4.425 2.865 8.18 6.839 9.504.5.092.682-.217.682-.483 0-.237-.008-.868-.013-1.703-2.782.605-3.369-1.343-3.369-1.343-.454-1.158-1.11-1.466-1.11-1.466-.908-.62.069-.608.069-.608 1.003.07 1.53 1.032 1.53 1.032.892 1.53 2.341 1.088 2.91.832.092-.647.35-1.088.636-1.338-2.22-.253-4.555-1.113-4.555-4.951 0-1.093.39-1.988 1.029-2.688-.103-.253-.446-1.272.098-2.65 0 0 .84-.27 2.75 1.026A9.564 9.564 0 0112 6.844c.85.004 1.705.115 2.504.337 1.909-1.296 2.747-1.027 2.747-1.027.546 1.379.202 2.398.1 2.651.64.7 1.028 1.595 1.028 2.688 0 3.848-2.339 4.695-4.566 4.943.359.309.678.92.678 1.855 0 1.338-.012 2.419-.012 2.747 0 .268.18.58.688.482A10.019 10.019 0 0022 12.017C22 6.484 17.522 2 12 2z"
                 />
               </svg>
-              <span>Tiếp tục với GitHub</span>
+              <span>{socialLoading === 'github' ? 'Đang chuyển đến GitHub...' : 'Tiếp tục với GitHub'}</span>
             </div>
 
-            <span className="rounded-md bg-slate-100 border border-slate-200 px-1.5 py-0.2 text-[8px] font-bold text-slate-700">
-              Dev
-            </span>
+            {oauthConfig?.github_enabled ? (
+              <span className="rounded-md bg-emerald-50 border border-emerald-200 px-1.5 py-0.2 text-[8px] font-bold text-emerald-700">
+                Sẵn sàng
+              </span>
+            ) : (
+              <span className="rounded-md bg-slate-100 border border-slate-200 px-1.5 py-0.2 text-[8px] font-bold text-slate-600">
+                Cấu hình
+              </span>
+            )}
           </button>
 
-          {/* Single Sign-On Button */}
+          {/* Single Sign-On Info */}
           <button
             type="button"
-            onClick={() => setShowSsoDialog(true)}
-            disabled={Boolean(socialLoading)}
+            onClick={() => {
+              setInfoMessage('Single Sign-On (SAML 2.0 / Okta) dành cho gói Enterprise. Vui lòng sử dụng Google, GitHub hoặc Email cá nhân/doanh nghiệp.');
+            }}
             className="w-full flex items-center justify-between rounded-xl border border-slate-200 bg-white hover:bg-slate-50 hover:border-slate-300 py-2 px-3 text-xs font-bold text-slate-700 transition cursor-pointer shadow-2xs group"
           >
             <div className="flex items-center gap-2.5">
               <KeyRound className="h-3.5 w-3.5 text-slate-500 shrink-0" />
               <span>Single Sign-On (SSO)</span>
             </div>
-
-            <span className="text-[9px] text-slate-400 font-mono">
-              SAML
-            </span>
+            <span className="text-[9px] text-slate-400 font-mono">SAML</span>
           </button>
         </div>
 
@@ -325,6 +391,14 @@ export const LoginModal: React.FC = () => {
           <div className="flex-grow border-t border-slate-200" />
         </div>
 
+        {/* Info Alert */}
+        {infoMessage && (
+          <div className="mb-2 flex items-start gap-1.5 rounded-lg bg-sky-50 border border-sky-200 p-2 text-xs text-sky-800 font-medium">
+            <ShieldCheck className="h-3.5 w-3.5 flex-shrink-0 mt-0.5 text-sky-600" />
+            <span className="text-[11px]">{infoMessage}</span>
+          </div>
+        )}
+
         {/* Error Alert */}
         {errorMessage && (
           <div className="mb-2 flex items-start gap-1.5 rounded-lg bg-rose-50 border border-rose-200 p-2 text-xs text-rose-700 font-medium">
@@ -333,7 +407,7 @@ export const LoginModal: React.FC = () => {
           </div>
         )}
 
-        {/* Auth Form */}
+        {/* Real Email/Password Form */}
         <form onSubmit={handleSubmit} className="space-y-2">
           {mode === 'register' && (
             <div>
@@ -416,6 +490,7 @@ export const LoginModal: React.FC = () => {
                   onClick={() => {
                     setMode('register');
                     setErrorMessage('');
+                    setInfoMessage('');
                   }}
                   className="font-bold text-slate-900 hover:underline cursor-pointer"
                 >
@@ -430,6 +505,7 @@ export const LoginModal: React.FC = () => {
                   onClick={() => {
                     setMode('login');
                     setErrorMessage('');
+                    setInfoMessage('');
                   }}
                   className="font-bold text-slate-900 hover:underline cursor-pointer"
                 >
@@ -446,217 +522,129 @@ export const LoginModal: React.FC = () => {
           </p>
         </div>
 
-        {/* Sub-modal: Google Account Selector (Linear & Plane Simulation) */}
-        {showGoogleDialog && (
+        {/* OAuth Setup Dialog (When Client ID is not yet configured) */}
+        {showConfigModal && (
           <div className="absolute inset-0 z-20 flex flex-col bg-white p-5 animate-in fade-in duration-150">
             <div className="flex items-center justify-between pb-2.5 border-b border-slate-100">
               <div className="flex items-center gap-2">
-                <svg className="h-4 w-4 shrink-0" viewBox="0 0 24 24">
-                  <path fill="#4285F4" d="M22.56 12.25c0-.78-.07-1.53-.2-2.25H12v4.26h5.92c-.26 1.37-1.04 2.53-2.21 3.31v2.77h3.57c2.08-1.92 3.28-4.74 3.28-8.09z" />
-                  <path fill="#34A853" d="M12 23c2.97 0 5.46-.98 7.28-2.66l-3.57-2.77c-.98.66-2.23 1.06-3.71 1.06-2.86 0-5.29-1.93-6.16-4.53H2.18v2.84C3.99 20.53 7.7 23 12 23z" />
-                  <path fill="#FBBC05" d="M5.84 14.09c-.22-.66-.35-1.36-.35-2.09s.13-1.43.35-2.09V7.06H2.18C1.43 8.55 1 10.22 1 12s.43 3.45 1.18 4.94l2.85-2.22.81-.63z" />
-                  <path fill="#EA4335" d="M12 5.38c1.62 0 3.06.56 4.21 1.64l3.15-3.15C17.45 2.09 14.97 1 12 1 7.7 1 3.99 3.47 2.18 7.06l3.66 2.84c.87-2.6 3.3-4.52 6.16-4.52z" />
-                </svg>
-                <h3 className="text-xs font-bold text-slate-900">Đăng nhập tài khoản Google</h3>
+                <Settings2 className="h-4 w-4 text-slate-800" />
+                <h3 className="text-xs font-bold text-slate-900">
+                  {showConfigModal === 'google' ? 'Cấu hình Google OAuth 2.0' : 'Cấu hình GitHub OAuth App'}
+                </h3>
               </div>
               <button
-                onClick={() => setShowGoogleDialog(false)}
+                onClick={() => setShowConfigModal(null)}
                 className="text-slate-400 hover:text-slate-700 p-1"
               >
                 <X className="h-4 w-4" />
               </button>
             </div>
 
-            <div className="py-3 space-y-2.5 flex-1 overflow-y-auto">
-              {/* Quick Pick Card 1 (thtnv9876@gmail.com) */}
-              <div
-                onClick={() => handleGoogleAuth('thtnv9876@gmail.com', 'Nguyễn Văn Viên')}
-                className="flex items-center gap-2.5 p-2.5 rounded-xl border border-slate-200 bg-slate-50 hover:bg-slate-100 hover:border-slate-300 transition cursor-pointer"
-              >
-                <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-slate-900 text-[#D4FF00] font-black text-xs">
-                  V
+            <div className="py-3 space-y-3 flex-1 overflow-y-auto text-xs text-slate-600">
+              <div className="rounded-lg bg-amber-50 border border-amber-200 p-2.5 text-[11px] text-amber-900 leading-relaxed">
+                Để đăng nhập bằng tài khoản {showConfigModal === 'google' ? 'Google' : 'GitHub'} thật 100%, bạn cần Client ID từ trang nhà phát triển:
+              </div>
+
+              {/* Step 1 & Callback URL */}
+              <div className="space-y-1">
+                <div className="text-[10px] font-bold uppercase tracking-wider text-slate-500">
+                  1. Authorization Callback URL:
                 </div>
-                <div className="flex-1 min-w-0">
-                  <div className="text-xs font-bold text-slate-900">Nguyễn Văn Viên</div>
-                  <div className="text-[10px] text-slate-500 font-mono truncate">thtnv9876@gmail.com</div>
+                <div className="flex items-center gap-1.5 p-1.5 rounded-lg bg-slate-50 border border-slate-200">
+                  <span className="font-mono text-[10px] text-slate-800 truncate flex-1">
+                    {typeof window !== 'undefined' ? `${window.location.origin}/auth/callback` : '/auth/callback'}
+                  </span>
+                  <button
+                    type="button"
+                    onClick={copyCallbackUrl}
+                    className="p-1 rounded hover:bg-slate-200 text-slate-600 cursor-pointer"
+                    title="Sao chép Callback URL"
+                  >
+                    {copiedCallback ? <Check className="h-3 w-3 text-emerald-600" /> : <Copy className="h-3 w-3" />}
+                  </button>
                 </div>
-                <ArrowRight className="h-3.5 w-3.5 text-slate-400" />
               </div>
 
-              {/* Custom Google Account input */}
-              <div className="pt-1">
-                <label className="text-[10px] font-bold text-slate-700 block mb-1">
-                  Hoặc đăng nhập bằng tài khoản Google khác:
-                </label>
-                <input
-                  type="email"
-                  value={googleEmailInput}
-                  onChange={(e) => setGoogleEmailInput(e.target.value)}
-                  placeholder="your-google-account@gmail.com"
-                  className="w-full rounded-lg border border-slate-300 bg-white px-3 py-1.5 text-xs text-slate-900 focus:border-slate-900 focus:outline-hidden mb-1.5"
-                />
-                <input
-                  type="text"
-                  value={googleNameInput}
-                  onChange={(e) => setGoogleNameInput(e.target.value)}
-                  placeholder="Họ và tên hiển thị"
-                  className="w-full rounded-lg border border-slate-300 bg-white px-3 py-1.5 text-xs text-slate-900 focus:border-slate-900 focus:outline-hidden"
-                />
-              </div>
-            </div>
-
-            <div className="pt-2 border-t border-slate-100 flex justify-end gap-2">
-              <button
-                type="button"
-                onClick={() => setShowGoogleDialog(false)}
-                className="rounded-lg border border-slate-200 px-3 py-1 text-xs font-bold text-slate-600 hover:bg-slate-50 cursor-pointer"
-              >
-                Hủy
-              </button>
-              <button
-                type="button"
-                disabled={Boolean(socialLoading)}
-                onClick={() => handleGoogleAuth()}
-                className="inline-flex items-center gap-1 rounded-lg bg-slate-900 px-3 py-1 text-xs font-bold text-white hover:bg-slate-800 transition cursor-pointer shadow-xs"
-              >
-                {socialLoading === 'google' && <Loader2 className="h-3 w-3 animate-spin" />}
-                <span>Đăng nhập</span>
-              </button>
-            </div>
-          </div>
-        )}
-
-        {/* Sub-modal: GitHub Account Selector */}
-        {showGithubDialog && (
-          <div className="absolute inset-0 z-20 flex flex-col bg-white p-5 animate-in fade-in duration-150">
-            <div className="flex items-center justify-between pb-2.5 border-b border-slate-100">
-              <div className="flex items-center gap-2">
-                <svg className="h-4 w-4 fill-slate-900 shrink-0" viewBox="0 0 24 24">
-                  <path fillRule="evenodd" clipRule="evenodd" d="M12 2C6.477 2 2 6.484 2 12.017c0 4.425 2.865 8.18 6.839 9.504.5.092.682-.217.682-.483 0-.237-.008-.868-.013-1.703-2.782.605-3.369-1.343-3.369-1.343-.454-1.158-1.11-1.466-1.11-1.466-.908-.62.069-.608.069-.608 1.003.07 1.53 1.032 1.53 1.032.892 1.53 2.341 1.088 2.91.832.092-.647.35-1.088.636-1.338-2.22-.253-4.555-1.113-4.555-4.951 0-1.093.39-1.988 1.029-2.688-.103-.253-.446-1.272.098-2.65 0 0 .84-.27 2.75 1.026A9.564 9.564 0 0112 6.844c.85.004 1.705.115 2.504.337 1.909-1.296 2.747-1.027 2.747-1.027.546 1.379.202 2.398.1 2.651.64.7 1.028 1.595 1.028 2.688 0 3.848-2.339 4.695-4.566 4.943.359.309.678.92.678 1.855 0 1.338-.012 2.419-.012 2.747 0 .268.18.58.688.482A10.019 10.019 0 0022 12.017C22 6.484 17.522 2 12 2z" />
-                </svg>
-                <h3 className="text-xs font-bold text-slate-900">Đăng nhập tài khoản GitHub</h3>
-              </div>
-              <button
-                onClick={() => setShowGithubDialog(false)}
-                className="text-slate-400 hover:text-slate-700 p-1"
-              >
-                <X className="h-4 w-4" />
-              </button>
-            </div>
-
-            <div className="py-3 space-y-2.5 flex-1 overflow-y-auto">
-              <p className="text-[11px] text-slate-600">
-                Nhập tên tài khoản (Username) GitHub để tự động lấy avatar và thông tin:
-              </p>
-
-              <div>
-                <label className="text-[10px] font-bold text-slate-700 block mb-1">
-                  GitHub Username:
-                </label>
-                <input
-                  type="text"
-                  value={githubUsernameInput}
-                  onChange={(e) => setGithubUsernameInput(e.target.value)}
-                  placeholder="VD: thtnv hoặc torvalds"
-                  className="w-full rounded-lg border border-slate-300 bg-white px-3 py-1.5 text-xs font-mono text-slate-900 focus:border-slate-900 focus:outline-hidden"
-                />
+              {/* Step 2 Link */}
+              <div className="space-y-1">
+                <div className="text-[10px] font-bold uppercase tracking-wider text-slate-500">
+                  2. Tạo thông tin xác thực tại:
+                </div>
+                {showConfigModal === 'google' ? (
+                  <a
+                    href="https://console.cloud.google.com/apis/credentials"
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="inline-flex items-center gap-1.5 text-[11px] font-bold text-blue-600 hover:underline"
+                  >
+                    <span>Google Cloud Console (Credentials)</span>
+                    <ExternalLink className="h-3 w-3" />
+                  </a>
+                ) : (
+                  <a
+                    href="https://github.com/settings/developers"
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="inline-flex items-center gap-1.5 text-[11px] font-bold text-slate-900 hover:underline"
+                  >
+                    <span>GitHub Developer Settings (OAuth Apps)</span>
+                    <ExternalLink className="h-3 w-3" />
+                  </a>
+                )}
               </div>
 
-              {githubUsernameInput && (
-                <div className="flex items-center gap-2.5 p-2.5 rounded-xl border border-slate-200 bg-slate-50">
-                  <img
-                    src={`https://github.com/${githubUsernameInput}.png`}
-                    alt="avatar"
-                    className="h-8 w-8 rounded-full border border-slate-300 bg-slate-200"
-                    onError={(e) => {
-                      (e.target as HTMLElement).style.display = 'none';
-                    }}
+              {/* Step 3 Inputs */}
+              <div className="space-y-2 pt-1">
+                <div>
+                  <label className="text-[10px] font-bold text-slate-700 block mb-1">
+                    Client ID *
+                  </label>
+                  <input
+                    type="text"
+                    required
+                    value={cfgClientId}
+                    onChange={(e) => setCfgClientId(e.target.value)}
+                    placeholder={
+                      showConfigModal === 'google'
+                        ? 'VD: 123456789-xxx.apps.googleusercontent.com'
+                        : 'VD: Iv1.0123456789abcdef'
+                    }
+                    className="w-full rounded-lg border border-slate-300 bg-white px-2.5 py-1.5 text-xs font-mono text-slate-900 focus:border-slate-900 focus:outline-hidden"
                   />
-                  <div>
-                    <div className="text-xs font-bold text-slate-900 font-mono">@{githubUsernameInput}</div>
-                    <div className="text-[10px] text-slate-500">Avatar tự động lấy từ GitHub</div>
-                  </div>
                 </div>
-              )}
-            </div>
 
-            <div className="pt-2 border-t border-slate-100 flex justify-end gap-2">
-              <button
-                type="button"
-                onClick={() => setShowGithubDialog(false)}
-                className="rounded-lg border border-slate-200 px-3 py-1 text-xs font-bold text-slate-600 hover:bg-slate-50 cursor-pointer"
-              >
-                Hủy
-              </button>
-              <button
-                type="button"
-                disabled={Boolean(socialLoading) || !githubUsernameInput.trim()}
-                onClick={() => handleGithubAuth()}
-                className="inline-flex items-center gap-1 rounded-lg bg-slate-900 px-3 py-1 text-xs font-bold text-white hover:bg-slate-800 transition cursor-pointer shadow-xs"
-              >
-                {socialLoading === 'github' && <Loader2 className="h-3 w-3 animate-spin" />}
-                <span>Xác nhận</span>
-              </button>
-            </div>
-          </div>
-        )}
-
-        {/* Sub-modal: Single Sign-On (SSO) */}
-        {showSsoDialog && (
-          <div className="absolute inset-0 z-20 flex flex-col bg-white p-5 animate-in fade-in duration-150">
-            <div className="flex items-center justify-between pb-2.5 border-b border-slate-100">
-              <div className="flex items-center gap-2">
-                <KeyRound className="h-4 w-4 text-indigo-600 shrink-0" />
-                <h3 className="text-xs font-bold text-slate-900">Single Sign-On (SSO)</h3>
-              </div>
-              <button
-                onClick={() => setShowSsoDialog(false)}
-                className="text-slate-400 hover:text-slate-700 p-1"
-              >
-                <X className="h-4 w-4" />
-              </button>
-            </div>
-
-            <div className="py-3 space-y-2.5 flex-1 overflow-y-auto">
-              <p className="text-[11px] text-slate-600">
-                Nhập tên miền công ty (Company Domain) để xác thực qua hệ thống định danh:
-              </p>
-
-              <div>
-                <label className="text-[10px] font-bold text-slate-700 block mb-1">
-                  Company Domain:
-                </label>
-                <input
-                  type="text"
-                  value={ssoDomainInput}
-                  onChange={(e) => setSsoDomainInput(e.target.value)}
-                  placeholder="VD: linear.app hoặc company.com"
-                  className="w-full rounded-lg border border-slate-300 bg-white px-3 py-1.5 text-xs font-mono text-slate-900 focus:border-slate-900 focus:outline-hidden"
-                />
-              </div>
-
-              <div className="flex items-center gap-2 text-[10px] text-slate-500 bg-slate-50 p-2.5 rounded-lg border border-slate-200">
-                <ShieldCheck className="h-3.5 w-3.5 text-emerald-600 shrink-0" />
-                <span>Hỗ trợ Okta, Microsoft Azure AD, Google Workspace SAML.</span>
+                <div>
+                  <label className="text-[10px] font-bold text-slate-700 block mb-1">
+                    Client Secret *
+                  </label>
+                  <input
+                    type="password"
+                    value={cfgClientSecret}
+                    onChange={(e) => setCfgClientSecret(e.target.value)}
+                    placeholder="Mã bí mật Client Secret"
+                    className="w-full rounded-lg border border-slate-300 bg-white px-2.5 py-1.5 text-xs font-mono text-slate-900 focus:border-slate-900 focus:outline-hidden"
+                  />
+                </div>
               </div>
             </div>
 
             <div className="pt-2 border-t border-slate-100 flex justify-end gap-2">
               <button
                 type="button"
-                onClick={() => setShowSsoDialog(false)}
-                className="rounded-lg border border-slate-200 px-3 py-1 text-xs font-bold text-slate-600 hover:bg-slate-50 cursor-pointer"
+                onClick={() => setShowConfigModal(null)}
+                className="rounded-lg border border-slate-200 px-3 py-1.5 text-xs font-bold text-slate-600 hover:bg-slate-50 cursor-pointer"
               >
-                Hủy
+                Đóng
               </button>
               <button
                 type="button"
-                disabled={Boolean(socialLoading) || !ssoDomainInput.trim()}
-                onClick={() => handleSsoAuth()}
-                className="inline-flex items-center gap-1 rounded-lg bg-slate-900 px-3 py-1 text-xs font-bold text-white hover:bg-slate-800 transition cursor-pointer shadow-xs"
+                disabled={savingConfig || !cfgClientId.trim()}
+                onClick={handleSaveConfigAndContinue}
+                className="inline-flex items-center gap-1.5 rounded-lg bg-slate-900 px-3 py-1.5 text-xs font-bold text-white hover:bg-slate-800 disabled:opacity-50 transition cursor-pointer shadow-xs"
               >
-                {socialLoading === 'sso' && <Loader2 className="h-3 w-3 animate-spin" />}
-                <span>Tiếp tục</span>
+                {savingConfig && <Loader2 className="h-3 w-3 animate-spin" />}
+                <span>Lưu &amp; Tiếp tục</span>
+                <ArrowRight className="h-3 w-3 text-[#D4FF00]" />
               </button>
             </div>
           </div>

@@ -23,7 +23,28 @@ class SocialLoginRequest(BaseModel):
 
 
 class GoogleAuthRequest(BaseModel):
-    credential: str
+    credential: Optional[str] = None
+    code: Optional[str] = None
+    redirect_uri: Optional[str] = None
+
+
+class GitHubAuthRequest(BaseModel):
+    code: str
+    redirect_uri: Optional[str] = None
+
+
+class OAuthConfigResponse(BaseModel):
+    google_client_id: str
+    github_client_id: str
+    google_enabled: bool
+    github_enabled: bool
+
+
+class SaveOAuthConfigRequest(BaseModel):
+    google_client_id: Optional[str] = None
+    google_client_secret: Optional[str] = None
+    github_client_id: Optional[str] = None
+    github_client_secret: Optional[str] = None
 
 
 class UserResponse(BaseSchema):

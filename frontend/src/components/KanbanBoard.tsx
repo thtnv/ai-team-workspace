@@ -75,15 +75,15 @@ export const KanbanBoard: React.FC = () => {
   );
 
   useEffect(() => {
-    if (!currentBoard) return;
+    if (!currentBoard || !currentUser) return;
 
     const socket = socketService.connect();
 
     socketService.joinBoard(currentBoard.id, {
-      id: currentUser?.id || 'usr-guest',
-      name: currentUser?.full_name || 'Alex Rivers',
-      email: currentUser?.email,
-      avatar_url: currentUser?.avatar_url,
+      id: currentUser.id,
+      name: currentUser.full_name,
+      email: currentUser.email,
+      avatar_url: currentUser.avatar_url,
     });
 
     const handleRemoteTaskMoved = (data: {
