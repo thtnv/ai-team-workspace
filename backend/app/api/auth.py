@@ -2,10 +2,13 @@ import os
 import uuid
 import jwt
 import json
+import time
 import logging
 import urllib.request
 import urllib.parse
+import urllib.error
 from datetime import datetime, timezone
+from typing import Dict, Any, Optional
 from fastapi import APIRouter, HTTPException, status, Depends
 from fastapi.security import OAuth2PasswordBearer
 from app.core.config import settings
@@ -24,6 +27,9 @@ from app.schemas.user import (
 )
 
 logger = logging.getLogger("syncpulse.auth")
+
+# In-memory deduplication cache for OAuth codes (prevents duplicate exchange errors in React StrictMode)
+_oauth_code_cache: Dict[str, dict] = {}
 
 router = APIRouter(prefix="/auth", tags=["Authentication"])
 oauth2_scheme = OAuth2PasswordBearer(tokenUrl="/api/auth/login")
@@ -255,6 +261,13 @@ async def update_oauth_config(req: SaveOAuthConfigRequest):
 @router.post("/google", response_model=Token)
 async def google_auth(req: GoogleAuthRequest):
     """Authenticate with real Google account via Google ID Token (GIS) or Auth Code."""
+    # Deduplicate concurrent requests with the exact same auth code (common in React StrictMode)
+    if req.code and req.code in _oauth_code_cache:
+        cached = _oauth_code_cache[req.code]
+        if time.time() - cached["time"] < 60:
+            logger.info("Serving Google auth response from deduplication cache.")
+            return Token(**cached["data"])
+
     try:
         email = None
         name = None
@@ -296,13 +309,23 @@ async def google_auth(req: GoogleAuthRequest):
             }).encode("utf-8")
 
             req_token = urllib.request.Request(token_url, data=data, method="POST", headers={"User-Agent": "SyncPulse-AI"})
-            with urllib.request.urlopen(req_token, timeout=8) as res:
-                token_data = json.loads(res.read().decode("utf-8"))
-                id_token_jwt = token_data.get("id_token")
-                payload = jwt.decode(id_token_jwt, options={"verify_signature": False})
-                email = payload.get("email")
-                name = payload.get("name") or email.split("@")[0]
-                picture = payload.get("picture")
+            try:
+                with urllib.request.urlopen(req_token, timeout=8) as res:
+                    token_data = json.loads(res.read().decode("utf-8"))
+                    id_token_jwt = token_data.get("id_token")
+                    payload = jwt.decode(id_token_jwt, options={"verify_signature": False})
+                    email = payload.get("email")
+                    name = payload.get("name") or email.split("@")[0]
+                    picture = payload.get("picture")
+            except urllib.error.HTTPError as he:
+                try:
+                    err_body = he.read().decode("utf-8")
+                    err_json = json.loads(err_body)
+                    err_desc = err_json.get("error_description") or err_json.get("error") or str(he)
+                except Exception:
+                    err_desc = str(he)
+                logger.warning(f"Google Token Exchange HTTPError: {err_desc}")
+                raise HTTPException(status_code=400, detail=f"Google OAuth failed: {err_desc}")
 
         if not email:
             raise HTTPException(status_code=400, detail="Không thể xác thực email từ Google. Vui lòng thử lại.")
@@ -314,7 +337,13 @@ async def google_auth(req: GoogleAuthRequest):
             avatar_url=picture,
             credential=req.credential or req.code
         )
-        return await social_login(social_req)
+        token_result = await social_login(social_req)
+        if req.code:
+            _oauth_code_cache[req.code] = {
+                "time": time.time(),
+                "data": token_result.model_dump()
+            }
+        return token_result
     except HTTPException:
         raise
     except Exception as e:
@@ -324,6 +353,13 @@ async def google_auth(req: GoogleAuthRequest):
 @router.post("/github", response_model=Token)
 async def github_auth(req: GitHubAuthRequest):
     """Authenticate with real GitHub account by exchanging authorization code."""
+    # Deduplicate concurrent requests with the exact same auth code (common in React StrictMode)
+    if req.code and req.code in _oauth_code_cache:
+        cached = _oauth_code_cache[req.code]
+        if time.time() - cached["time"] < 60:
+            logger.info("Serving GitHub auth response from deduplication cache.")
+            return Token(**cached["data"])
+
     if not settings.GITHUB_CLIENT_ID or not settings.GITHUB_CLIENT_SECRET:
         raise HTTPException(
             status_code=400,
@@ -348,8 +384,18 @@ async def github_auth(req: GitHubAuthRequest):
         }
 
         req_gh = urllib.request.Request(token_url, data=data, headers=headers, method="POST")
-        with urllib.request.urlopen(req_gh, timeout=8) as res:
-            token_res = json.loads(res.read().decode("utf-8"))
+        try:
+            with urllib.request.urlopen(req_gh, timeout=8) as res:
+                token_res = json.loads(res.read().decode("utf-8"))
+        except urllib.error.HTTPError as he:
+            try:
+                err_body = he.read().decode("utf-8")
+                err_json = json.loads(err_body)
+                err_desc = err_json.get("error_description") or err_json.get("error") or str(he)
+            except Exception:
+                err_desc = str(he)
+            logger.warning(f"GitHub Token Exchange HTTPError: {err_desc}")
+            raise HTTPException(status_code=400, detail=f"GitHub OAuth failed: {err_desc}")
 
         access_token = token_res.get("access_token")
         if not access_token:
@@ -399,7 +445,13 @@ async def github_auth(req: GitHubAuthRequest):
             avatar_url=avatar,
             credential=access_token
         )
-        return await social_login(social_req)
+        token_result = await social_login(social_req)
+        if req.code:
+            _oauth_code_cache[req.code] = {
+                "time": time.time(),
+                "data": token_result.model_dump()
+            }
+        return token_result
     except HTTPException:
         raise
     except Exception as e:

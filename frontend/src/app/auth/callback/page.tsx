@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useEffect, useState, Suspense } from 'react';
+import React, { useEffect, useState, useRef, Suspense } from 'react';
 import { useRouter, useSearchParams } from 'next/navigation';
 import { api } from '@/lib/api';
 import { useStore } from '@/store/useStore';
@@ -11,6 +11,7 @@ function CallbackContent() {
   const router = useRouter();
   const searchParams = useSearchParams();
   const {
+    currentUser,
     setCurrentUser,
     setWorkspaces,
     setCurrentWorkspace,
@@ -26,7 +27,14 @@ function CallbackContent() {
   const [errorMessage, setErrorMessage] = useState('');
   const [authUserInfo, setAuthUserInfo] = useState<any>(null);
 
+  // Guard against React StrictMode invoking useEffect twice in development
+  const exchangeCalledRef = useRef(false);
+
   useEffect(() => {
+    // If already called in this lifecycle, do not send duplicate requests
+    if (exchangeCalledRef.current) return;
+    exchangeCalledRef.current = true;
+
     const handleAuthCallback = async () => {
       const code = searchParams.get('code');
       const state = searchParams.get('state') || '';
@@ -40,6 +48,11 @@ function CallbackContent() {
       }
 
       if (!code) {
+        // If user already has an active session, navigate to dashboard
+        if (api.getToken() || currentUser) {
+          router.replace('/');
+          return;
+        }
         setStatus('error');
         setErrorMessage('Không nhận được mã xác thực (Authorization Code) từ nhà cung cấp.');
         return;
@@ -108,10 +121,20 @@ function CallbackContent() {
         setStatusMessage('Đăng nhập thành công! Đang chuyển đến bảng làm việc...');
 
         setTimeout(() => {
-          router.push('/');
-        }, 800);
+          router.replace('/');
+        }, 600);
       } catch (err: any) {
         console.error('OAuth exchange error:', err);
+        // If the token is already present (e.g. from concurrent successful call), don't show error
+        if (api.getToken()) {
+          setStatus('success');
+          setStatusMessage('Đăng nhập thành công! Đang chuyển đến bảng làm việc...');
+          setTimeout(() => {
+            router.replace('/');
+          }, 400);
+          return;
+        }
+
         setStatus('error');
         setErrorMessage(
           err.message || 'Không thể hoàn tất xác thực OAuth. Vui lòng kiểm tra lại cấu hình client ID/secret.'
@@ -120,7 +143,7 @@ function CallbackContent() {
     };
 
     handleAuthCallback();
-  }, [searchParams, router, setCurrentUser, setWorkspaces, setCurrentWorkspace, setBoards, setCurrentBoard, setTasks, setNotes, setOnboardingOpen]);
+  }, [searchParams, router, currentUser, setCurrentUser, setWorkspaces, setCurrentWorkspace, setBoards, setCurrentBoard, setTasks, setNotes, setOnboardingOpen]);
 
   return (
     <div className="flex min-h-screen items-center justify-center bg-slate-100 p-4">
@@ -172,7 +195,7 @@ function CallbackContent() {
               {errorMessage}
             </div>
             <button
-              onClick={() => router.push('/')}
+              onClick={() => router.replace('/')}
               className="mt-3 inline-flex items-center justify-center gap-2 w-full rounded-xl bg-slate-900 px-4 py-2.5 text-xs font-bold text-white hover:bg-slate-800 transition cursor-pointer"
             >
               <ArrowLeft className="h-3.5 w-3.5" />
