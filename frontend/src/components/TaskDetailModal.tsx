@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useState, useEffect, useRef } from 'react';
+import React, { useState, useEffect, useRef, useMemo } from 'react';
 import { useStore } from '@/store/useStore';
 import { api } from '@/lib/api';
 import { socketService } from '@/lib/socket';
@@ -15,8 +15,12 @@ import {
   Clock,
   User as UserIcon,
   Loader2,
+  Users,
+  UserPlus,
+  UserCheck,
+  Check,
 } from 'lucide-react';
-import { Task, Priority, Subtask, TaskComment, PRIORITY_CONFIG } from '@/types';
+import { Task, Priority, Subtask, TaskComment, PRIORITY_CONFIG, WorkspaceMember } from '@/types';
 
 function formatRelativeTime(isoString?: string) {
   if (!isoString) return 'Vừa xong';
@@ -49,6 +53,7 @@ export const TaskDetailModal: React.FC = () => {
     updateTask,
     deleteTask,
     currentBoard,
+    currentWorkspace,
     currentUser,
     addTaskComment,
   } = useStore();
@@ -60,12 +65,65 @@ export const TaskDetailModal: React.FC = () => {
   const [tagInput, setTagInput] = useState('');
   const [checklists, setChecklists] = useState<Subtask[]>([]);
   const [newChecklistTitle, setNewChecklistTitle] = useState('');
+  const [assignees, setAssignees] = useState<string[]>([]);
+  const [isAssigneeDropdownOpen, setIsAssigneeDropdownOpen] = useState(false);
+  const assigneeDropdownRef = useRef<HTMLDivElement>(null);
   const [saving, setSaving] = useState(false);
   const [commentInput, setCommentInput] = useState('');
   const [sendingComment, setSendingComment] = useState(false);
   const commentsEndRef = useRef<HTMLDivElement | null>(null);
 
   const comments = selectedTaskForDetail?.comments || [];
+
+  // Close assignee dropdown on outside click
+  useEffect(() => {
+    const handleClickOutside = (e: MouseEvent) => {
+      if (assigneeDropdownRef.current && !assigneeDropdownRef.current.contains(e.target as Node)) {
+        setIsAssigneeDropdownOpen(false);
+      }
+    };
+    document.addEventListener('mousedown', handleClickOutside);
+    return () => document.removeEventListener('mousedown', handleClickOutside);
+  }, []);
+
+  const workspaceMembersList: WorkspaceMember[] = useMemo(() => {
+    const list = currentWorkspace?.members ? [...currentWorkspace.members] : [];
+    if (currentUser && !list.some((m) => m.user_id === currentUser.id)) {
+      list.unshift({
+        user_id: currentUser.id,
+        email: currentUser.email,
+        full_name: currentUser.full_name,
+        role: 'admin',
+        avatar_url: currentUser.avatar_url,
+      });
+    }
+    return list;
+  }, [currentWorkspace?.members, currentUser]);
+
+  const assignedMembers = useMemo(() => {
+    return assignees
+      .map((id) => workspaceMembersList.find((m) => m.user_id === id))
+      .filter((m): m is WorkspaceMember => Boolean(m));
+  }, [assignees, workspaceMembersList]);
+
+  const handleToggleAssignee = async (userId: string) => {
+    let nextAssignees: string[];
+    if (assignees.includes(userId)) {
+      nextAssignees = assignees.filter((id) => id !== userId);
+    } else {
+      nextAssignees = [...assignees, userId];
+    }
+    setAssignees(nextAssignees);
+    await handleSave({ assignees: nextAssignees });
+  };
+
+  const handleAssignToMe = async () => {
+    if (!currentUser) return;
+    if (assignees.includes(currentUser.id)) return;
+    const nextAssignees = [...assignees, currentUser.id];
+    setAssignees(nextAssignees);
+    await handleSave({ assignees: nextAssignees });
+  };
 
   const handleSendComment = async (e?: React.FormEvent) => {
     if (e) e.preventDefault();
@@ -94,6 +152,7 @@ export const TaskDetailModal: React.FC = () => {
       setPriority(selectedTaskForDetail.priority);
       setTags(selectedTaskForDetail.tags || []);
       setChecklists(selectedTaskForDetail.checklists || []);
+      setAssignees(selectedTaskForDetail.assignees || []);
     }
   }, [selectedTaskForDetail]);
 
@@ -152,6 +211,7 @@ export const TaskDetailModal: React.FC = () => {
         priority,
         tags,
         checklists,
+        assignees,
         ...overrideData,
       };
       const result = await api.updateTask(selectedTaskForDetail.id, updates);
@@ -220,6 +280,130 @@ export const TaskDetailModal: React.FC = () => {
               onBlur={() => handleSave()}
               className="mt-1 w-full rounded-xl border border-slate-300 bg-slate-50 px-3.5 py-2 text-base font-bold text-slate-900 focus:bg-white focus:border-[#84CC16] focus:outline-none"
             />
+          </div>
+
+          {/* Phân công thành viên (Assignees) */}
+          <div className="rounded-xl border border-slate-200 bg-slate-50/70 p-3.5 space-y-2">
+            <div className="flex items-center justify-between">
+              <label className="text-[11px] font-bold uppercase tracking-wider text-slate-600 flex items-center gap-1.5">
+                <Users className="h-3.5 w-3.5 text-slate-700" />
+                <span>Người thực hiện (Assignees)</span>
+              </label>
+
+              {/* Quick "Assign to me" button if current user is not assigned */}
+              {currentUser && !assignees.includes(currentUser.id) && (
+                <button
+                  type="button"
+                  onClick={handleAssignToMe}
+                  className="inline-flex items-center gap-1 rounded-lg border border-indigo-200 bg-indigo-50 px-2.5 py-1 text-[11px] font-semibold text-indigo-700 hover:bg-indigo-100 hover:border-indigo-300 transition cursor-pointer shadow-2xs"
+                  title="Nhận việc này cho chính bạn (Assign to me)"
+                >
+                  <UserCheck className="h-3.5 w-3.5 text-indigo-600" />
+                  <span>Gán cho tôi</span>
+                </button>
+              )}
+            </div>
+
+            {/* List of currently assigned members + Add button */}
+            <div className="flex items-center gap-2 flex-wrap">
+              {assignedMembers.length === 0 ? (
+                <span className="text-xs text-slate-400 italic">
+                  Chưa phân công cho ai (Unassigned)
+                </span>
+              ) : (
+                assignedMembers.map((m) => (
+                  <div
+                    key={m.user_id}
+                    className="inline-flex items-center gap-1.5 rounded-full border border-slate-200 bg-white pl-1 pr-2 py-0.5 text-xs text-slate-800 shadow-2xs"
+                  >
+                    {m.avatar_url ? (
+                      <img
+                        src={m.avatar_url}
+                        alt={m.full_name}
+                        referrerPolicy="no-referrer"
+                        className="h-5 w-5 rounded-full object-cover"
+                      />
+                    ) : (
+                      <div className="flex h-5 w-5 items-center justify-center rounded-full bg-slate-900 text-[#D4FF00] text-[9px] font-black">
+                        {(m.full_name || 'U').charAt(0).toUpperCase()}
+                      </div>
+                    )}
+                    <span className="font-medium text-[11px]">{m.full_name}</span>
+                    <button
+                      type="button"
+                      onClick={() => handleToggleAssignee(m.user_id)}
+                      className="ml-0.5 rounded-full p-0.5 text-slate-400 hover:bg-slate-100 hover:text-rose-600 transition cursor-pointer"
+                      title="Gỡ bỏ phân công"
+                    >
+                      <X className="h-3 w-3" />
+                    </button>
+                  </div>
+                ))
+              )}
+
+              {/* Dropdown Button to Add/Change Members */}
+              <div className="relative" ref={assigneeDropdownRef}>
+                <button
+                  type="button"
+                  onClick={() => setIsAssigneeDropdownOpen(!isAssigneeDropdownOpen)}
+                  className="inline-flex items-center gap-1 rounded-lg border border-dashed border-slate-300 bg-white px-2.5 py-1 text-[11px] font-semibold text-slate-700 hover:border-slate-400 hover:bg-slate-50 transition cursor-pointer shadow-2xs"
+                >
+                  <UserPlus className="h-3 w-3 text-slate-500" />
+                  <span>+ Phân công</span>
+                </button>
+
+                {isAssigneeDropdownOpen && (
+                  <div className="absolute left-0 top-full mt-1.5 z-50 w-64 rounded-xl border border-slate-200 bg-white p-2 shadow-2xl space-y-1 ring-1 ring-black/5 animate-in fade-in zoom-in-95 duration-100">
+                    <div className="px-2 py-1 text-[10px] font-bold uppercase tracking-wider text-slate-400 border-b border-slate-100 mb-1">
+                      Thành viên trong nhóm ({workspaceMembersList.length})
+                    </div>
+                    <div className="max-h-48 overflow-y-auto space-y-1 pr-0.5 scrollbar-thin">
+                      {workspaceMembersList.map((mem) => {
+                        const isAssigned = assignees.includes(mem.user_id);
+                        return (
+                          <button
+                            key={mem.user_id}
+                            type="button"
+                            onClick={() => handleToggleAssignee(mem.user_id)}
+                            className={`w-full flex items-center justify-between gap-2 rounded-lg px-2 py-1.5 text-xs text-left transition cursor-pointer ${
+                              isAssigned
+                                ? 'bg-slate-100 text-slate-900 font-bold'
+                                : 'text-slate-700 hover:bg-slate-50 font-normal'
+                            }`}
+                          >
+                            <div className="flex items-center gap-2 min-w-0">
+                              {mem.avatar_url ? (
+                                <img
+                                  src={mem.avatar_url}
+                                  alt={mem.full_name}
+                                  referrerPolicy="no-referrer"
+                                  className="h-6 w-6 rounded-full object-cover shrink-0"
+                                />
+                              ) : (
+                                <div className="flex h-6 w-6 items-center justify-center rounded-full bg-slate-900 text-[#D4FF00] text-[10px] font-black shrink-0">
+                                  {(mem.full_name || 'U').charAt(0).toUpperCase()}
+                                </div>
+                              )}
+                              <div className="min-w-0">
+                                <p className="truncate text-xs font-semibold leading-tight">
+                                  {mem.full_name}
+                                </p>
+                                <p className="truncate text-[10px] text-slate-400 font-mono">
+                                  {mem.email}
+                                </p>
+                              </div>
+                            </div>
+                            {isAssigned && (
+                              <Check className="h-4 w-4 text-emerald-600 shrink-0" />
+                            )}
+                          </button>
+                        );
+                      })}
+                    </div>
+                  </div>
+                )}
+              </div>
+            </div>
           </div>
 
           {/* Priority & Tags */}

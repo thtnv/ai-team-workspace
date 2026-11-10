@@ -1,10 +1,10 @@
 'use client';
 
-import React, { useState } from 'react';
+import React, { useState, useMemo } from 'react';
 import { useStore } from '@/store/useStore';
 import { api } from '@/lib/api';
-import { X, Plus, Loader2 } from 'lucide-react';
-import { Priority, PRIORITY_CONFIG } from '@/types';
+import { X, Plus, Loader2, Users, Check } from 'lucide-react';
+import { Priority, PRIORITY_CONFIG, WorkspaceMember } from '@/types';
 
 export const CreateTaskModal: React.FC = () => {
   const {
@@ -21,7 +21,24 @@ export const CreateTaskModal: React.FC = () => {
   const [description, setDescription] = useState('');
   const [priority, setPriority] = useState<Priority>('medium');
   const [columnId, setColumnId] = useState(selectedColumnForCreate || 'col-todo');
+  const [selectedAssignees, setSelectedAssignees] = useState<string[]>(
+    currentUser ? [currentUser.id] : []
+  );
   const [loading, setLoading] = useState(false);
+
+  const workspaceMembersList: WorkspaceMember[] = useMemo(() => {
+    const list = currentWorkspace?.members ? [...currentWorkspace.members] : [];
+    if (currentUser && !list.some((m) => m.user_id === currentUser.id)) {
+      list.unshift({
+        user_id: currentUser.id,
+        email: currentUser.email,
+        full_name: currentUser.full_name,
+        role: 'admin',
+        avatar_url: currentUser.avatar_url,
+      });
+    }
+    return list;
+  }, [currentWorkspace?.members, currentUser]);
 
   if (!isCreateTaskOpen) return null;
 
@@ -38,7 +55,7 @@ export const CreateTaskModal: React.FC = () => {
         title: title.trim(),
         description: description.trim(),
         priority,
-        assignees: currentUser ? [currentUser.id] : [],
+        assignees: selectedAssignees,
         checklists: [],
       });
 
@@ -46,6 +63,7 @@ export const CreateTaskModal: React.FC = () => {
       setCreateTaskOpen(false);
       setTitle('');
       setDescription('');
+      setSelectedAssignees(currentUser ? [currentUser.id] : []);
     } catch (err: any) {
       alert(err.message || 'Lỗi khi tạo task');
     } finally {
@@ -139,6 +157,52 @@ export const CreateTaskModal: React.FC = () => {
               placeholder="Chi tiết công việc cần hoàn thành..."
               className="mt-1 w-full rounded-xl border border-slate-300 bg-slate-50 p-3 text-xs leading-relaxed text-slate-800 placeholder:text-slate-400 focus:bg-white focus:border-[#84CC16] focus:outline-none"
             />
+          </div>
+
+          {/* Phân công thành viên */}
+          <div>
+            <label className="text-xs font-bold text-slate-700 flex items-center gap-1.5 mb-1.5">
+              <Users className="h-3.5 w-3.5 text-slate-600" />
+              <span>Phân công người thực hiện</span>
+            </label>
+            <div className="flex items-center gap-1.5 flex-wrap">
+              {workspaceMembersList.map((mem) => {
+                const isSelected = selectedAssignees.includes(mem.user_id);
+                return (
+                  <button
+                    key={mem.user_id}
+                    type="button"
+                    onClick={() => {
+                      if (isSelected) {
+                        setSelectedAssignees(selectedAssignees.filter((id) => id !== mem.user_id));
+                      } else {
+                        setSelectedAssignees([...selectedAssignees, mem.user_id]);
+                      }
+                    }}
+                    className={`inline-flex items-center gap-1.5 rounded-full border px-2.5 py-1 text-xs transition cursor-pointer shadow-2xs ${
+                      isSelected
+                        ? 'border-slate-900 bg-slate-900 text-white font-bold'
+                        : 'border-slate-200 bg-white text-slate-700 hover:bg-slate-50'
+                    }`}
+                  >
+                    {mem.avatar_url ? (
+                      <img
+                        src={mem.avatar_url}
+                        alt={mem.full_name}
+                        referrerPolicy="no-referrer"
+                        className="h-4 w-4 rounded-full object-cover"
+                      />
+                    ) : (
+                      <div className="flex h-4 w-4 items-center justify-center rounded-full bg-slate-800 text-[#D4FF00] text-[8px] font-black">
+                        {(mem.full_name || 'U').charAt(0).toUpperCase()}
+                      </div>
+                    )}
+                    <span>{mem.full_name}</span>
+                    {isSelected && <Check className="h-3 w-3 text-[#D4FF00]" />}
+                  </button>
+                );
+              })}
+            </div>
           </div>
 
           <div className="flex items-center justify-end gap-2 pt-3 border-t border-slate-100">

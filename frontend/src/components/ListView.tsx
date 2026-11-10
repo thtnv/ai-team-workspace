@@ -14,12 +14,14 @@ import {
   Circle,
   AlertCircle,
   Tag,
+  User,
 } from 'lucide-react';
 import { Task, Priority, PRIORITY_CONFIG, sortTasksList } from '@/types';
 
 export const ListView: React.FC = () => {
   const {
     currentBoard,
+    currentWorkspace,
     tasks,
     currentUser,
     searchQuery,
@@ -138,6 +140,20 @@ export const ListView: React.FC = () => {
                     const doneChk = task.checklists?.filter((c) => c.is_done).length || 0;
                     const commentsCount = task.comments?.length || 0;
 
+                    const membersList = currentWorkspace?.members ? [...currentWorkspace.members] : [];
+                    if (currentUser && !membersList.some((m) => m.user_id === currentUser.id)) {
+                      membersList.push({
+                        user_id: currentUser.id,
+                        email: currentUser.email,
+                        full_name: currentUser.full_name,
+                        role: 'admin',
+                        avatar_url: currentUser.avatar_url,
+                      });
+                    }
+                    const rowAssignees = (task.assignees || [])
+                      .map((id) => membersList.find((m) => m.user_id === id))
+                      .filter((m): m is NonNullable<typeof m> => Boolean(m));
+
                     return (
                       <div
                         key={task.id}
@@ -225,6 +241,44 @@ export const ListView: React.FC = () => {
                             >
                               <MessageSquare className="h-3 w-3 text-slate-400" />
                               <span>{commentsCount}</span>
+                            </div>
+                          )}
+
+                          {/* Assignees */}
+                          {rowAssignees.length > 0 ? (
+                            <div className="flex items-center -space-x-1.5 overflow-hidden">
+                              {rowAssignees.slice(0, 3).map((m) =>
+                                m.avatar_url ? (
+                                  <img
+                                    key={m.user_id}
+                                    src={m.avatar_url}
+                                    alt={m.full_name}
+                                    title={`Phụ trách: ${m.full_name}`}
+                                    referrerPolicy="no-referrer"
+                                    className="h-5 w-5 rounded-full ring-2 ring-white object-cover shadow-2xs"
+                                  />
+                                ) : (
+                                  <div
+                                    key={m.user_id}
+                                    title={`Phụ trách: ${m.full_name}`}
+                                    className="flex h-5 w-5 items-center justify-center rounded-full bg-slate-900 text-[#D4FF00] text-[9px] font-black ring-2 ring-white shadow-2xs"
+                                  >
+                                    {(m.full_name || 'U').charAt(0).toUpperCase()}
+                                  </div>
+                                )
+                              )}
+                              {rowAssignees.length > 3 && (
+                                <span className="flex h-5 w-5 items-center justify-center rounded-full bg-slate-100 text-[9px] font-bold text-slate-600 ring-2 ring-white">
+                                  +{rowAssignees.length - 3}
+                                </span>
+                              )}
+                            </div>
+                          ) : (
+                            <div
+                              className="flex h-5 w-5 items-center justify-center text-slate-300 hover:text-slate-500 transition"
+                              title="Chưa có người phụ trách"
+                            >
+                              <User className="h-3.5 w-3.5" />
                             </div>
                           )}
 

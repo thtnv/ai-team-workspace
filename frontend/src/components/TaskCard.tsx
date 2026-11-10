@@ -1,12 +1,12 @@
 'use client';
 
-import React from 'react';
+import React, { useMemo } from 'react';
 import { useSortable } from '@dnd-kit/sortable';
 import { CSS } from '@dnd-kit/utilities';
 import { Task, Priority, PRIORITY_CONFIG } from '@/types';
 import { useStore } from '@/store/useStore';
 import { socketService } from '@/lib/socket';
-import { CheckSquare, Clock, Sparkles, GripVertical, Lock, MessageSquare } from 'lucide-react';
+import { CheckSquare, Clock, Sparkles, GripVertical, Lock, MessageSquare, User } from 'lucide-react';
 
 interface TaskCardProps {
   task: Task;
@@ -18,6 +18,25 @@ const TaskCardComponent: React.FC<TaskCardProps> = ({ task }) => {
   const currentUserName = useStore((s) => s.currentUser?.full_name);
   const currentBoardId = useStore((s) => s.currentBoard?.id);
   const densityMode = useStore((s) => s.densityMode);
+  const workspaceMembers = useStore((s) => s.currentWorkspace?.members);
+  const currentUser = useStore((s) => s.currentUser);
+
+  const assignedMembers = useMemo(() => {
+    if (!task.assignees || task.assignees.length === 0) return [];
+    const membersList = workspaceMembers ? [...workspaceMembers] : [];
+    if (currentUser && !membersList.some((m) => m.user_id === currentUser.id)) {
+      membersList.push({
+        user_id: currentUser.id,
+        email: currentUser.email,
+        full_name: currentUser.full_name,
+        role: 'admin',
+        avatar_url: currentUser.avatar_url,
+      });
+    }
+    return task.assignees
+      .map((id) => membersList.find((m) => m.user_id === id))
+      .filter((m): m is NonNullable<typeof m> => Boolean(m));
+  }, [task.assignees, workspaceMembers, currentUser]);
 
   const {
     attributes,
@@ -170,7 +189,7 @@ const TaskCardComponent: React.FC<TaskCardProps> = ({ task }) => {
           )}
         </div>
 
-        {/* Right meta: Comments & Due Date */}
+        {/* Right meta: Comments, Due Date & Assignees */}
         <div className="flex items-center gap-2 text-slate-500 font-mono text-[10px] font-medium">
           {task.comments && task.comments.length > 0 && (
             <div
@@ -185,6 +204,47 @@ const TaskCardComponent: React.FC<TaskCardProps> = ({ task }) => {
             <div className="flex items-center gap-1">
               <Clock className="h-3 w-3 text-slate-400" />
               <span>{task.due_date}</span>
+            </div>
+          )}
+
+          {/* Assignees avatars */}
+          {assignedMembers.length > 0 ? (
+            <div className="flex items-center -space-x-1.5 overflow-hidden pl-0.5">
+              {assignedMembers.slice(0, 2).map((m) =>
+                m.avatar_url ? (
+                  <img
+                    key={m.user_id}
+                    src={m.avatar_url}
+                    alt={m.full_name}
+                    title={`Phụ trách: ${m.full_name}`}
+                    referrerPolicy="no-referrer"
+                    className="h-4.5 w-4.5 rounded-full ring-1.5 ring-white object-cover shadow-2xs"
+                  />
+                ) : (
+                  <div
+                    key={m.user_id}
+                    title={`Phụ trách: ${m.full_name}`}
+                    className="flex h-4.5 w-4.5 items-center justify-center rounded-full bg-slate-900 text-[#D4FF00] text-[8px] font-black ring-1.5 ring-white shadow-2xs"
+                  >
+                    {(m.full_name || 'U').charAt(0).toUpperCase()}
+                  </div>
+                )
+              )}
+              {assignedMembers.length > 2 && (
+                <span
+                  title={`${assignedMembers.length} người phụ trách`}
+                  className="flex h-4.5 w-4.5 items-center justify-center rounded-full bg-slate-200 text-[8px] font-bold text-slate-700 ring-1.5 ring-white"
+                >
+                  +{assignedMembers.length - 2}
+                </span>
+              )}
+            </div>
+          ) : (
+            <div
+              className="flex h-4 w-4 items-center justify-center text-slate-300 hover:text-slate-500 transition"
+              title="Chưa có người phụ trách"
+            >
+              <User className="h-3 w-3" />
             </div>
           )}
         </div>
