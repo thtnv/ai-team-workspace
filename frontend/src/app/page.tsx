@@ -11,13 +11,11 @@ import { FilterBar } from '@/components/FilterBar';
 import { QuickStartSteps } from '@/components/QuickStartSteps';
 import { CommandPalette } from '@/components/CommandPalette';
 import { ProductWalkthrough } from '@/components/ProductWalkthrough';
-import { AIBreakdownModal } from '@/components/AIBreakdownModal';
-import { AINotesModal } from '@/components/AINotesModal';
-import { TaskDetailModal } from '@/components/TaskDetailModal';
-import { CreateTaskModal } from '@/components/CreateTaskModal';
 import { LoginModal } from '@/components/LoginModal';
 import { OnboardingModal } from '@/components/OnboardingModal';
-import { InviteModal, WorkspaceSettingsModal } from '@/components/admin';
+import { AIBreakdownModal, AINotesModal, TaskDetailModal, CreateTaskModal } from '@/app/member';
+import { InviteModal, WorkspaceSettingsModal } from '@/app/admin';
+import { ViewerBanner } from '@/app/viewer';
 import {
   Sparkles,
   ArrowUpRight,
@@ -159,6 +157,7 @@ export default function Home() {
   return (
     <div className="h-screen w-screen flex flex-col overflow-hidden bg-slate-50 text-slate-900 selection:bg-[#D4FF00] selection:text-slate-950">
       <Navbar />
+      <ViewerBanner />
 
       {/* Compact Subheader: Board KPI Metrics & Quick Start Guide */}
       <div className="border-b border-slate-200 bg-white/70 backdrop-blur-xs px-4 py-1.5 flex-shrink-0">
