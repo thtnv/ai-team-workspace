@@ -180,12 +180,18 @@ async def join_workspace(req: WorkspaceJoinRequest, current_user: dict = Depends
 @router.post("/{workspace_id}/invite")
 async def invite_member(workspace_id: str, req: WorkspaceInviteRequest, current_user: dict = Depends(get_current_user)):
     """Invite a member by email to the current workspace."""
+    user_id = str(current_user["_id"])
     workspaces_col = db_manager.get_collection("workspaces")
     users_col = db_manager.get_collection("users")
 
     ws = await workspaces_col.find_one({"_id": workspace_id})
     if not ws:
         raise HTTPException(status_code=404, detail="Không tìm thấy không gian làm việc.")
+
+    members = ws.get("members", [])
+    caller = next((m for m in members if m.get("user_id") == user_id), None)
+    if not caller or (caller.get("role") not in ["admin", "owner"] and str(ws.get("owner_id")) != user_id):
+        raise HTTPException(status_code=403, detail="Chỉ Quản trị viên (Admin) hoặc Trưởng nhóm mới có quyền mời thành viên mới.")
 
     target_email = req.email.strip().lower()
     target_user = await users_col.find_one({"email": target_email})

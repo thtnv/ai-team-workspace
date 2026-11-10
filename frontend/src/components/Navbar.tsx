@@ -37,6 +37,18 @@ export const Navbar: React.FC = () => {
 
   const [menuOpen, setMenuOpen] = useState(false);
 
+  // User workspace role calculation
+  const isOwner = Boolean(currentUser && currentWorkspace && currentUser.id === currentWorkspace.owner_id);
+  const currentMember = currentWorkspace?.members?.find((m) => m.user_id === currentUser?.id);
+  const isAdmin = Boolean(isOwner || currentMember?.role === 'admin');
+  const roleLabel = isOwner
+    ? 'Trưởng nhóm'
+    : currentMember?.role === 'admin'
+    ? 'Quản trị viên'
+    : currentMember?.role === 'viewer'
+    ? 'Quan sát viên'
+    : 'Thành viên';
+
   const handleLogout = () => {
     if (currentBoard) {
       socketService.leaveBoard(currentBoard.id);
@@ -101,13 +113,15 @@ export const Navbar: React.FC = () => {
                 <Building2 className="h-3 w-3 text-slate-500" />
                 <span>{currentWorkspace?.name || 'Workspace'}</span>
               </button>
-              <button
-                onClick={() => setWorkspaceSettingsOpen(true)}
-                className="px-1.5 py-0.5 hover:bg-slate-200 text-slate-400 hover:text-slate-800 transition cursor-pointer border-l border-slate-200"
-                title="Cài đặt & Quản trị Không gian (Settings)"
-              >
-                <Settings className="h-3 w-3" />
-              </button>
+              {isAdmin && (
+                <button
+                  onClick={() => setWorkspaceSettingsOpen(true)}
+                  className="px-1.5 py-0.5 hover:bg-slate-200 text-slate-400 hover:text-slate-800 transition cursor-pointer border-l border-slate-200"
+                  title="Cài đặt & Quản trị Không gian (Settings)"
+                >
+                  <Settings className="h-3 w-3" />
+                </button>
+              )}
             </div>
             <span className="text-slate-400">/</span>
             <span className="text-xs font-bold text-slate-800 truncate max-w-[180px]">
@@ -181,15 +195,17 @@ export const Navbar: React.FC = () => {
                 <span className="hidden lg:inline">+ Task</span>
               </button>
 
-              {/* Invite Members Button */}
-              <button
-                onClick={() => setInviteModalOpen(true)}
-                className="flex items-center gap-1 rounded-lg border border-slate-300 bg-white px-2.5 py-1.5 text-xs font-semibold text-slate-700 transition hover:bg-slate-100 hover:text-slate-900 cursor-pointer shadow-2xs"
-                title="Mời thành viên vào Không gian làm việc"
-              >
-                <UserPlus className="h-3.5 w-3.5 text-slate-600" />
-                <span className="hidden md:inline">Mời</span>
-              </button>
+              {/* Invite Members Button (Admin / Owner only) */}
+              {isAdmin && (
+                <button
+                  onClick={() => setInviteModalOpen(true)}
+                  className="flex items-center gap-1 rounded-lg border border-slate-300 bg-white px-2.5 py-1.5 text-xs font-semibold text-slate-700 transition hover:bg-slate-100 hover:text-slate-900 cursor-pointer shadow-2xs"
+                  title="Mời thành viên vào Không gian làm việc"
+                >
+                  <UserPlus className="h-3.5 w-3.5 text-slate-600" />
+                  <span className="hidden md:inline">Mời</span>
+                </button>
+              )}
 
               <div className="h-4 w-px bg-slate-200" />
             </>
@@ -221,33 +237,46 @@ export const Navbar: React.FC = () => {
 
               {/* Dropdown Menu */}
               {menuOpen && (
-                <div className="absolute right-0 mt-2 w-56 rounded-xl border border-slate-200 bg-white p-2 shadow-xl z-50">
-                  <div className="px-2 py-1.5 border-b border-slate-100">
-                    <p className="text-xs font-bold text-slate-900 truncate">{currentUser.full_name}</p>
-                    <p className="text-[10px] text-slate-500 truncate">{currentUser.email}</p>
+                <div className="absolute right-0 mt-2 w-60 rounded-xl border border-slate-200 bg-white p-2 shadow-xl z-50 animate-in fade-in zoom-in-95 duration-100">
+                  <div className="px-2.5 py-2 border-b border-slate-100 bg-slate-50/70 rounded-lg mb-1">
+                    <div className="flex items-center justify-between gap-1.5">
+                      <p className="text-xs font-bold text-slate-900 truncate">{currentUser.full_name}</p>
+                      <span className={`text-[9px] font-bold px-1.5 py-0.5 rounded border shrink-0 ${
+                        isAdmin
+                          ? 'bg-[#D4FF00]/30 text-slate-900 border-[#bce000]'
+                          : 'bg-slate-200/70 text-slate-700 border-slate-300'
+                      }`}>
+                        {roleLabel}
+                      </span>
+                    </div>
+                    <p className="text-[10px] text-slate-500 truncate mt-0.5">{currentUser.email}</p>
                   </div>
                   
-                  <div className="py-1 border-b border-slate-100">
-                    <button
-                      onClick={() => {
-                        setMenuOpen(false);
-                        setWorkspaceSettingsOpen(true);
-                      }}
-                      className="w-full flex items-center gap-2 rounded-lg px-2 py-1.5 text-xs font-medium text-slate-700 hover:bg-slate-100 transition cursor-pointer"
-                    >
-                      <Settings className="h-3.5 w-3.5 text-slate-500" />
-                      <span>Cài đặt Không gian (Admin)</span>
-                    </button>
-                    <button
-                      onClick={() => {
-                        setMenuOpen(false);
-                        setInviteModalOpen(true);
-                      }}
-                      className="w-full flex items-center gap-2 rounded-lg px-2 py-1.5 text-xs font-medium text-slate-700 hover:bg-slate-100 transition cursor-pointer"
-                    >
-                      <UserPlus className="h-3.5 w-3.5 text-slate-500" />
-                      <span>Mời thành viên</span>
-                    </button>
+                  <div className="py-1 border-b border-slate-100 space-y-0.5">
+                    {isAdmin && (
+                      <>
+                        <button
+                          onClick={() => {
+                            setMenuOpen(false);
+                            setWorkspaceSettingsOpen(true);
+                          }}
+                          className="w-full flex items-center gap-2 rounded-lg px-2 py-1.5 text-xs font-medium text-slate-700 hover:bg-slate-100 transition cursor-pointer"
+                        >
+                          <Settings className="h-3.5 w-3.5 text-slate-500" />
+                          <span>Cài đặt Không gian (Admin)</span>
+                        </button>
+                        <button
+                          onClick={() => {
+                            setMenuOpen(false);
+                            setInviteModalOpen(true);
+                          }}
+                          className="w-full flex items-center gap-2 rounded-lg px-2 py-1.5 text-xs font-medium text-slate-700 hover:bg-slate-100 transition cursor-pointer"
+                        >
+                          <UserPlus className="h-3.5 w-3.5 text-slate-500" />
+                          <span>Mời thành viên</span>
+                        </button>
+                      </>
+                    )}
                     <button
                       onClick={() => {
                         setMenuOpen(false);

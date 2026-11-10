@@ -22,6 +22,8 @@ import { Priority, Task, PRIORITY_CONFIG } from '@/types';
 
 export const CommandPalette: React.FC = () => {
   const {
+    currentUser,
+    currentWorkspace,
     isCommandPaletteOpen,
     setCommandPaletteOpen,
     tasks,
@@ -37,6 +39,10 @@ export const CommandPalette: React.FC = () => {
     setSelectedTaskForDetail,
     setCurrentUser,
   } = useStore();
+
+  const isOwner = Boolean(currentUser && currentWorkspace && currentUser.id === currentWorkspace.owner_id);
+  const currentMember = currentWorkspace?.members?.find((m) => m.user_id === currentUser?.id);
+  const isAdmin = Boolean(isOwner || currentMember?.role === 'admin');
 
   const [query, setQuery] = useState('');
   const [selectedIndex, setSelectedIndex] = useState(0);
@@ -68,117 +74,129 @@ export const CommandPalette: React.FC = () => {
   }, [isCommandPaletteOpen]);
 
   // Define Quick Actions
-  const allActions = useMemo(() => [
-    {
-      id: 'act-ai',
-      type: 'action',
-      title: 'Phân rã tính năng bằng AI Gemini 3.5',
-      subtitle: 'Tự động tạo task và checklist từ User Story',
-      icon: Sparkles,
-      iconColor: 'text-slate-950 bg-[#D4FF00]',
-      keywords: 'ai gemini breakdown phan ra tao task',
-      run: () => {
-        setCommandPaletteOpen(false);
-        setAIBreakdownOpen(true);
+  const allActions = useMemo(() => {
+    const actions = [
+      {
+        id: 'act-ai',
+        type: 'action',
+        title: 'Phân rã tính năng bằng AI Gemini 3.5',
+        subtitle: 'Tự động tạo task và checklist từ User Story',
+        icon: Sparkles,
+        iconColor: 'text-slate-950 bg-[#D4FF00]',
+        keywords: 'ai gemini breakdown phan ra tao task',
+        run: () => {
+          setCommandPaletteOpen(false);
+          setAIBreakdownOpen(true);
+        },
       },
-    },
-    {
-      id: 'act-create-task',
-      type: 'action',
-      title: 'Tạo thẻ việc mới',
-      subtitle: 'Thêm công việc mới vào bảng Kanban',
-      icon: Plus,
-      iconColor: 'text-white bg-slate-900',
-      keywords: 'create new task tao viec moi them',
-      run: () => {
-        setCommandPaletteOpen(false);
-        setCreateTaskOpen(true);
+      {
+        id: 'act-create-task',
+        type: 'action',
+        title: 'Tạo thẻ việc mới',
+        subtitle: 'Thêm công việc mới vào bảng Kanban',
+        icon: Plus,
+        iconColor: 'text-white bg-slate-900',
+        keywords: 'create new task tao viec moi them',
+        run: () => {
+          setCommandPaletteOpen(false);
+          setCreateTaskOpen(true);
+        },
       },
-    },
-    {
-      id: 'act-toggle-view',
-      type: 'action',
-      title: currentView === 'kanban' ? 'Chuyển sang xem dạng Danh sách (List View)' : 'Chuyển sang xem dạng Bảng (Kanban View)',
-      subtitle: 'Thay đổi layout hiển thị thẻ công việc',
-      icon: currentView === 'kanban' ? List : Kanban,
-      iconColor: 'text-white bg-indigo-600',
-      keywords: 'view layout switch table list kanban bang danh sach',
-      run: () => {
-        setCommandPaletteOpen(false);
-        setCurrentView(currentView === 'kanban' ? 'list' : 'kanban');
+      {
+        id: 'act-toggle-view',
+        type: 'action',
+        title: currentView === 'kanban' ? 'Chuyển sang xem dạng Danh sách (List View)' : 'Chuyển sang xem dạng Bảng (Kanban View)',
+        subtitle: 'Thay đổi layout hiển thị thẻ công việc',
+        icon: currentView === 'kanban' ? List : Kanban,
+        iconColor: 'text-white bg-indigo-600',
+        keywords: 'view layout switch table list kanban bang danh sach',
+        run: () => {
+          setCommandPaletteOpen(false);
+          setCurrentView(currentView === 'kanban' ? 'list' : 'kanban');
+        },
       },
-    },
-    {
-      id: 'act-workspace-settings',
-      type: 'action',
-      title: 'Cài đặt Không gian làm việc (Admin Settings)',
-      subtitle: 'Quản lý thành viên, đổi tên nhóm và cấu hình AI',
-      icon: Settings,
-      iconColor: 'text-white bg-slate-800',
-      keywords: 'settings admin quan tri cai dat thanh vien phan quyen',
-      run: () => {
-        setCommandPaletteOpen(false);
-        setWorkspaceSettingsOpen(true);
-      },
-    },
-    {
-      id: 'act-invite',
-      type: 'action',
-      title: 'Mời thành viên vào nhóm',
-      subtitle: 'Sao chép link mời hoặc gửi email cho đồng đội',
-      icon: Users,
-      iconColor: 'text-white bg-blue-600',
-      keywords: 'invite member share link moi thanh vien dong doi',
-      run: () => {
-        setCommandPaletteOpen(false);
-        setInviteModalOpen(true);
-      },
-    },
-    {
-      id: 'act-notes',
-      type: 'action',
-      title: 'Mở Sổ tay AI Notes & Biên bản họp',
-      subtitle: 'Trích xuất Action Items thành thẻ việc 1-click',
-      icon: FileText,
-      iconColor: 'text-white bg-amber-600',
-      keywords: 'notes meeting bien ban hop ghi chep action items',
-      run: () => {
-        setCommandPaletteOpen(false);
-        setAINotesOpen(true);
-      },
-    },
-    {
-      id: 'act-tour',
-      type: 'action',
-      title: 'Xem lại Tour hướng dẫn sử dụng (Product Walkthrough)',
-      subtitle: 'Khám phá các tính năng chính của SyncPulse',
-      icon: Compass,
-      iconColor: 'text-white bg-emerald-600',
-      keywords: 'tour huong dan ftue walkthrough onboarding help',
-      run: () => {
-        setCommandPaletteOpen(false);
-        setWalkthroughOpen(true);
-      },
-    },
-    {
-      id: 'act-logout',
-      type: 'action',
-      title: 'Đăng xuất tài khoản',
-      subtitle: 'Thoát phiên làm việc hiện tại',
-      icon: LogOut,
-      iconColor: 'text-white bg-rose-600',
-      keywords: 'logout exit dang xuat thoat',
-      run: () => {
-        setCommandPaletteOpen(false);
-        if (typeof window !== 'undefined') {
-          localStorage.removeItem('syncpulse_token');
-          localStorage.removeItem('syncpulse_user');
+    ];
+
+    if (isAdmin) {
+      actions.push(
+        {
+          id: 'act-workspace-settings',
+          type: 'action',
+          title: 'Cài đặt Không gian làm việc (Admin Settings)',
+          subtitle: 'Quản lý thành viên, đổi tên nhóm và cấu hình AI',
+          icon: Settings,
+          iconColor: 'text-white bg-slate-800',
+          keywords: 'settings admin quan tri cai dat thanh vien phan quyen',
+          run: () => {
+            setCommandPaletteOpen(false);
+            setWorkspaceSettingsOpen(true);
+          },
+        },
+        {
+          id: 'act-invite',
+          type: 'action',
+          title: 'Mời thành viên vào nhóm',
+          subtitle: 'Sao chép link mời hoặc gửi email cho đồng đội',
+          icon: Users,
+          iconColor: 'text-white bg-blue-600',
+          keywords: 'invite member share link moi thanh vien dong doi',
+          run: () => {
+            setCommandPaletteOpen(false);
+            setInviteModalOpen(true);
+          },
         }
-        setCurrentUser(null);
-        window.location.reload();
+      );
+    }
+
+    actions.push(
+      {
+        id: 'act-notes',
+        type: 'action',
+        title: 'Mở Sổ tay AI Notes & Biên bản họp',
+        subtitle: 'Trích xuất Action Items thành thẻ việc 1-click',
+        icon: FileText,
+        iconColor: 'text-white bg-amber-600',
+        keywords: 'notes meeting bien ban hop ghi chep action items',
+        run: () => {
+          setCommandPaletteOpen(false);
+          setAINotesOpen(true);
+        },
       },
-    },
-  ], [currentView, setCurrentView, setAIBreakdownOpen, setCreateTaskOpen, setInviteModalOpen, setAINotesOpen, setWalkthroughOpen, setCommandPaletteOpen, setCurrentUser]);
+      {
+        id: 'act-tour',
+        type: 'action',
+        title: 'Xem lại Tour hướng dẫn sử dụng (Product Walkthrough)',
+        subtitle: 'Khám phá các tính năng chính của SyncPulse',
+        icon: Compass,
+        iconColor: 'text-white bg-emerald-600',
+        keywords: 'tour huong dan ftue walkthrough onboarding help',
+        run: () => {
+          setCommandPaletteOpen(false);
+          setWalkthroughOpen(true);
+        },
+      },
+      {
+        id: 'act-logout',
+        type: 'action',
+        title: 'Đăng xuất tài khoản',
+        subtitle: 'Thoát phiên làm việc hiện tại',
+        icon: LogOut,
+        iconColor: 'text-white bg-rose-600',
+        keywords: 'logout exit dang xuat thoat',
+        run: () => {
+          setCommandPaletteOpen(false);
+          if (typeof window !== 'undefined') {
+            localStorage.removeItem('syncpulse_token');
+            localStorage.removeItem('syncpulse_user');
+          }
+          setCurrentUser(null);
+          window.location.reload();
+        },
+      }
+    );
+
+    return actions;
+  }, [isAdmin, currentView, setCurrentView, setAIBreakdownOpen, setCreateTaskOpen, setInviteModalOpen, setAINotesOpen, setWalkthroughOpen, setWorkspaceSettingsOpen, setCommandPaletteOpen, setCurrentUser]);
 
   // Filter actions based on query
   const filteredActions = useMemo(() => {

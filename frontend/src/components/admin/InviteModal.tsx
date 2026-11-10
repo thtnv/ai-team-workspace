@@ -15,7 +15,8 @@ import {
   Loader2,
   AlertCircle,
   CheckCircle2,
-  Link as LinkIcon
+  Link as LinkIcon,
+  ShieldAlert,
 } from 'lucide-react';
 
 export const InviteModal: React.FC = () => {
@@ -35,6 +36,32 @@ export const InviteModal: React.FC = () => {
   const [copiedCode, setCopiedCode] = useState(false);
 
   if (!isInviteModalOpen || !currentWorkspace) return null;
+
+  const isOwner = Boolean(currentUser && currentWorkspace && currentUser.id === currentWorkspace.owner_id);
+  const userMember = currentWorkspace.members?.find((m) => m.user_id === currentUser?.id);
+  const isAdmin = Boolean(isOwner || userMember?.role === 'admin');
+
+  if (!isAdmin) {
+    return (
+      <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-950/60 backdrop-blur-xs p-4 animate-in fade-in duration-150">
+        <div className="relative flex flex-col items-center text-center max-w-sm w-full bg-white rounded-2xl border border-slate-200 p-6 shadow-2xl animate-in zoom-in-95 duration-150">
+          <div className="flex h-12 w-12 items-center justify-center rounded-2xl bg-amber-50 border border-amber-200 mb-3 text-amber-600 shadow-2xs">
+            <ShieldAlert className="h-6 w-6 text-amber-600" />
+          </div>
+          <h3 className="text-sm font-bold text-slate-900 mb-1">Giới hạn quyền mời</h3>
+          <p className="text-xs text-slate-600 mb-5 leading-relaxed">
+            Bạn đang đăng nhập với vai trò <span className="font-bold text-slate-900">{userMember?.role === 'viewer' ? 'Quan sát viên' : 'Thành viên'}</span>. Chỉ Quản trị viên (Admin) hoặc Trưởng nhóm mới có quyền mời hoặc chia sẻ mã mời tham gia Không gian làm việc.
+          </p>
+          <button
+            onClick={() => setInviteModalOpen(false)}
+            className="w-full py-2 px-4 rounded-xl bg-slate-900 hover:bg-slate-800 text-xs font-bold text-white transition shadow-2xs cursor-pointer"
+          >
+            Đã hiểu, quay lại
+          </button>
+        </div>
+      </div>
+    );
+  }
 
   const inviteLink =
     typeof window !== 'undefined'

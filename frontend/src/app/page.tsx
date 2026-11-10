@@ -17,8 +17,7 @@ import { TaskDetailModal } from '@/components/TaskDetailModal';
 import { CreateTaskModal } from '@/components/CreateTaskModal';
 import { LoginModal } from '@/components/LoginModal';
 import { OnboardingModal } from '@/components/OnboardingModal';
-import { InviteModal } from '@/components/InviteModal';
-import { WorkspaceSettingsModal } from '@/components/WorkspaceSettingsModal';
+import { InviteModal, WorkspaceSettingsModal } from '@/components/admin';
 import {
   Sparkles,
   ArrowUpRight,
@@ -61,6 +60,10 @@ export default function Home() {
   } = useStore();
 
   const [loading, setLoading] = useState(true);
+
+  const isOwner = Boolean(currentUser && currentWorkspace && currentUser.id === currentWorkspace.owner_id);
+  const currentMember = currentWorkspace?.members?.find((m) => m.user_id === currentUser?.id);
+  const isAdmin = Boolean(isOwner || currentMember?.role === 'admin');
 
   const loadWorkspaceData = async (user: any) => {
     try {
@@ -316,8 +319,12 @@ export default function Home() {
       <CreateTaskModal />
       <LoginModal />
       <OnboardingModal />
-      <InviteModal />
-      <WorkspaceSettingsModal />
+      {isAdmin && (
+        <>
+          <InviteModal />
+          <WorkspaceSettingsModal />
+        </>
+      )}
       <QuickStartSteps />
       <CommandPalette />
       <ProductWalkthrough />
