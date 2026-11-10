@@ -48,8 +48,10 @@ export const FilterBar: React.FC = () => {
 
   const [isPriorityMenuOpen, setIsPriorityMenuOpen] = useState(false);
   const [isSortMenuOpen, setIsSortMenuOpen] = useState(false);
+  const [isTagMenuOpen, setIsTagMenuOpen] = useState(false);
   const priorityMenuRef = useRef<HTMLDivElement>(null);
   const sortMenuRef = useRef<HTMLDivElement>(null);
+  const tagMenuRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
     const handleClickOutside = (e: MouseEvent) => {
@@ -59,11 +61,15 @@ export const FilterBar: React.FC = () => {
       if (sortMenuRef.current && !sortMenuRef.current.contains(e.target as Node)) {
         setIsSortMenuOpen(false);
       }
+      if (tagMenuRef.current && !tagMenuRef.current.contains(e.target as Node)) {
+        setIsTagMenuOpen(false);
+      }
     };
     const handleKeyDown = (e: KeyboardEvent) => {
       if (e.key === 'Escape') {
         setIsPriorityMenuOpen(false);
         setIsSortMenuOpen(false);
+        setIsTagMenuOpen(false);
       }
     };
     document.addEventListener('mousedown', handleClickOutside);
@@ -142,15 +148,15 @@ export const FilterBar: React.FC = () => {
         </div>
 
         {/* Priority Filter with Color-Coded Text Boxes (No icons) */}
-        <div className="relative hidden sm:block" ref={priorityMenuRef}>
+        <div className="relative hidden sm:block w-40 sm:w-44" ref={priorityMenuRef}>
           {selectedPriority ? (
             <div
-              className={`inline-flex items-center gap-1.5 rounded-lg border px-2.5 py-1 text-[11px] uppercase tracking-wider shadow-2xs transition cursor-pointer ${
+              className={`w-full inline-flex items-center justify-between gap-1.5 rounded-lg border px-2.5 py-1 text-[11px] uppercase tracking-wider shadow-2xs transition cursor-pointer ${
                 PRIORITY_CONFIG[selectedPriority as Priority]?.boxClass
               }`}
               onClick={() => setIsPriorityMenuOpen(!isPriorityMenuOpen)}
             >
-              <span>{PRIORITY_CONFIG[selectedPriority as Priority]?.label}</span>
+              <span className="truncate">{PRIORITY_CONFIG[selectedPriority as Priority]?.label}</span>
               <button
                 type="button"
                 onClick={(e) => {
@@ -158,7 +164,7 @@ export const FilterBar: React.FC = () => {
                   setSelectedPriority(null);
                   setIsPriorityMenuOpen(false);
                 }}
-                className="rounded-full p-0.5 hover:bg-black/10 transition cursor-pointer"
+                className="rounded-full p-0.5 hover:bg-black/10 transition cursor-pointer shrink-0"
                 title="Bỏ lọc ưu tiên"
               >
                 <X className="h-3 w-3" />
@@ -168,28 +174,29 @@ export const FilterBar: React.FC = () => {
             <button
               type="button"
               onClick={() => setIsPriorityMenuOpen(!isPriorityMenuOpen)}
-              className="inline-flex items-center gap-1.5 rounded-lg border border-slate-200 bg-white px-2.5 py-1 text-[11px] font-semibold text-slate-700 hover:bg-slate-50 transition cursor-pointer shadow-2xs"
+              className="w-full inline-flex items-center justify-between gap-1.5 rounded-lg border border-slate-200 bg-white px-2.5 py-1 text-[11px] font-semibold text-slate-700 hover:bg-slate-50 transition cursor-pointer shadow-2xs"
             >
-              <span>Độ ưu tiên: Tất cả</span>
-              <ChevronDown className={`h-3 w-3 text-slate-400 transition-transform ${isPriorityMenuOpen ? 'rotate-180' : ''}`} />
+              <span className="truncate">Độ ưu tiên: Tất cả</span>
+              <ChevronDown className={`h-3 w-3 text-slate-400 shrink-0 transition-transform ${isPriorityMenuOpen ? 'rotate-180' : ''}`} />
             </button>
           )}
 
           {isPriorityMenuOpen && (
-            <div className="absolute left-0 top-full mt-1.5 z-50 w-48 rounded-xl border border-slate-200 bg-white p-2 shadow-2xl space-y-1.5 ring-1 ring-black/5 animate-in fade-in zoom-in-95 duration-100">
+            <div className="absolute left-0 top-full mt-1.5 z-50 w-full min-w-full rounded-xl border border-slate-200 bg-white p-1.5 shadow-2xl space-y-1 ring-1 ring-black/5 animate-in fade-in zoom-in-95 duration-100">
               <button
                 type="button"
                 onClick={() => {
                   setSelectedPriority(null);
                   setIsPriorityMenuOpen(false);
                 }}
-                className={`w-full rounded-lg border px-3 py-1.5 text-xs text-left transition cursor-pointer ${
+                className={`w-full flex items-center justify-between rounded-lg px-2.5 py-1.5 text-xs text-left transition cursor-pointer ${
                   !selectedPriority
                     ? 'border-slate-900 bg-slate-900 text-white font-bold'
                     : 'border-slate-200 bg-white text-slate-700 hover:bg-slate-100 font-medium'
                 }`}
               >
-                Tất cả mức độ
+                <span>Tất cả mức độ</span>
+                {!selectedPriority && <Check className="h-3.5 w-3.5 text-[#D4FF00] shrink-0" />}
               </button>
 
               {(Object.keys(PRIORITY_CONFIG) as Priority[]).map((pKey) => {
@@ -203,11 +210,12 @@ export const FilterBar: React.FC = () => {
                       setSelectedPriority(pKey);
                       setIsPriorityMenuOpen(false);
                     }}
-                    className={`w-full rounded-lg border px-3 py-1.5 text-xs text-left transition cursor-pointer shadow-2xs ${conf.boxClass} ${
+                    className={`w-full flex items-center justify-between rounded-lg border px-2.5 py-1.5 text-xs text-left transition cursor-pointer shadow-2xs ${conf.boxClass} ${
                       isSelected ? 'ring-2 ring-slate-900 font-extrabold' : conf.hoverClass
                     }`}
                   >
-                    {conf.label}
+                    <span>{conf.label}</span>
+                    {isSelected && <Check className="h-3.5 w-3.5 text-slate-900 shrink-0" />}
                   </button>
                 );
               })}
@@ -216,24 +224,26 @@ export const FilterBar: React.FC = () => {
         </div>
 
         {/* Smart Sort Dropdown */}
-        <div className="relative hidden sm:block" ref={sortMenuRef}>
+        <div className="relative hidden sm:block w-52 sm:w-56" ref={sortMenuRef}>
           <button
             type="button"
             onClick={() => setIsSortMenuOpen(!isSortMenuOpen)}
-            className={`inline-flex items-center gap-1.5 rounded-lg border px-2.5 py-1 text-[11px] font-semibold transition cursor-pointer shadow-2xs ${
+            className={`w-full inline-flex items-center justify-between gap-1.5 rounded-lg border px-2.5 py-1 text-[11px] font-semibold transition cursor-pointer shadow-2xs ${
               sortBy !== 'manual'
                 ? 'border-indigo-300 bg-indigo-50 text-indigo-700'
                 : 'border-slate-200 bg-white text-slate-700 hover:bg-slate-50'
             }`}
             title="Sắp xếp thông minh khi có nhiều task cùng độ ưu tiên"
           >
-            <ArrowUpDown className="h-3 w-3 text-slate-500" />
-            <span>Sắp xếp: {SORT_OPTIONS.find((s) => s.value === sortBy)?.label}</span>
-            <ChevronDown className={`h-3 w-3 text-slate-400 transition-transform ${isSortMenuOpen ? 'rotate-180' : ''}`} />
+            <div className="flex items-center gap-1.5 truncate">
+              <ArrowUpDown className="h-3 w-3 text-slate-500 shrink-0" />
+              <span className="truncate">Sắp xếp: {SORT_OPTIONS.find((s) => s.value === sortBy)?.label}</span>
+            </div>
+            <ChevronDown className={`h-3 w-3 text-slate-400 shrink-0 transition-transform ${isSortMenuOpen ? 'rotate-180' : ''}`} />
           </button>
 
           {isSortMenuOpen && (
-            <div className="absolute left-0 top-full mt-1.5 z-50 w-52 rounded-xl border border-slate-200 bg-white p-1.5 shadow-2xl ring-1 ring-black/5 animate-in fade-in zoom-in-95 duration-100 space-y-1">
+            <div className="absolute left-0 top-full mt-1.5 z-50 w-full min-w-full rounded-xl border border-slate-200 bg-white p-1.5 shadow-2xl ring-1 ring-black/5 animate-in fade-in zoom-in-95 duration-100 space-y-1">
               <div className="px-2 py-1 text-[10px] font-bold uppercase tracking-wider text-slate-400">
                 Tiêu chí sắp xếp
               </div>
@@ -251,33 +261,97 @@ export const FilterBar: React.FC = () => {
                       : 'text-slate-700 hover:bg-slate-100 font-medium'
                   }`}
                 >
-                  <span>{opt.label}</span>
-                  {sortBy === opt.value && <Check className="h-3.5 w-3.5 text-[#D4FF00]" />}
+                  <span className="truncate">{opt.label}</span>
+                  {sortBy === opt.value && <Check className="h-3.5 w-3.5 text-[#D4FF00] shrink-0" />}
                 </button>
               ))}
             </div>
           )}
         </div>
 
-        {/* Tag Filter (if tags exist) */}
+        {/* Tag Filter Custom Dropdown (Matching Style of Priority & Sort) */}
         {availableTags.length > 0 && (
-          <div className="hidden md:flex items-center gap-1">
-            <select
-              value={selectedTag || ''}
-              onChange={(e) => setSelectedTag(e.target.value ? e.target.value : null)}
-              className={`rounded-lg border px-2 py-1 text-[11px] font-semibold transition cursor-pointer focus:outline-hidden ${
-                selectedTag
-                  ? 'border-slate-900 bg-slate-900 text-white'
-                  : 'border-slate-200 bg-white text-slate-700 hover:bg-slate-50'
-              }`}
-            >
-              <option value="" className="bg-white text-slate-800 font-normal">Nhãn: Tất cả (#)</option>
-              {availableTags.map((tag) => (
-                <option key={tag} value={tag} className="bg-white text-slate-800 font-normal">
-                  #{tag}
-                </option>
-              ))}
-            </select>
+          <div className="relative hidden md:block w-40 sm:w-44" ref={tagMenuRef}>
+            {selectedTag ? (
+              <div
+                className="w-full inline-flex items-center justify-between gap-1.5 rounded-lg border border-slate-900 bg-slate-900 text-white px-2.5 py-1 text-[11px] font-mono font-semibold shadow-2xs transition cursor-pointer"
+                onClick={() => setIsTagMenuOpen(!isTagMenuOpen)}
+              >
+                <div className="flex items-center gap-1.5 truncate">
+                  <Tag className="h-3 w-3 text-[#D4FF00] shrink-0" />
+                  <span className="truncate">#{selectedTag}</span>
+                </div>
+                <button
+                  type="button"
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    setSelectedTag(null);
+                    setIsTagMenuOpen(false);
+                  }}
+                  className="rounded-full p-0.5 hover:bg-white/20 transition cursor-pointer shrink-0"
+                  title="Bỏ lọc nhãn"
+                >
+                  <X className="h-3 w-3" />
+                </button>
+              </div>
+            ) : (
+              <button
+                type="button"
+                onClick={() => setIsTagMenuOpen(!isTagMenuOpen)}
+                className="w-full inline-flex items-center justify-between gap-1.5 rounded-lg border border-slate-200 bg-white px-2.5 py-1 text-[11px] font-semibold text-slate-700 hover:bg-slate-50 transition cursor-pointer shadow-2xs"
+              >
+                <div className="flex items-center gap-1.5 truncate">
+                  <Tag className="h-3 w-3 text-slate-500 shrink-0" />
+                  <span className="truncate">Nhãn: Tất cả (#)</span>
+                </div>
+                <ChevronDown className={`h-3 w-3 text-slate-400 shrink-0 transition-transform ${isTagMenuOpen ? 'rotate-180' : ''}`} />
+              </button>
+            )}
+
+            {isTagMenuOpen && (
+              <div className="absolute left-0 top-full mt-1.5 z-50 w-full min-w-full rounded-xl border border-slate-200 bg-white p-1.5 shadow-2xl ring-1 ring-black/5 animate-in fade-in zoom-in-95 duration-100 space-y-1">
+                <button
+                  type="button"
+                  onClick={() => {
+                    setSelectedTag(null);
+                    setIsTagMenuOpen(false);
+                  }}
+                  className={`w-full flex items-center justify-between rounded-lg px-2.5 py-1.5 text-xs text-left transition cursor-pointer ${
+                    !selectedTag
+                      ? 'bg-slate-900 text-white font-bold'
+                      : 'text-slate-700 hover:bg-slate-100 font-medium'
+                  }`}
+                >
+                  <span>Tất cả nhãn (#)</span>
+                  {!selectedTag && <Check className="h-3.5 w-3.5 text-[#D4FF00] shrink-0" />}
+                </button>
+
+                {/* Scrollable list of tags if many tags exist */}
+                <div className="max-h-56 overflow-y-auto space-y-1 pr-0.5 scrollbar-thin">
+                  {availableTags.map((tag) => {
+                    const isSelected = selectedTag?.toLowerCase() === tag.toLowerCase();
+                    return (
+                      <button
+                        key={tag}
+                        type="button"
+                        onClick={() => {
+                          setSelectedTag(tag);
+                          setIsTagMenuOpen(false);
+                        }}
+                        className={`w-full flex items-center justify-between rounded-lg px-2.5 py-1.5 text-xs text-left font-mono transition cursor-pointer ${
+                          isSelected
+                            ? 'bg-slate-900 text-white font-bold'
+                            : 'text-slate-700 hover:bg-slate-100 font-medium'
+                        }`}
+                      >
+                        <span className="truncate">#{tag}</span>
+                        {isSelected && <Check className="h-3.5 w-3.5 text-[#D4FF00] shrink-0" />}
+                      </button>
+                    );
+                  })}
+                </div>
+              </div>
+            )}
           </div>
         )}
 
