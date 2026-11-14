@@ -86,6 +86,8 @@ export interface Board {
   workspace_id: string;
   title: string;
   description?: string;
+  start_date?: string | null;
+  end_date?: string | null;
   columns: Column[];
   created_by: string;
   created_at: string;
@@ -108,6 +110,41 @@ export interface TaskComment {
   created_at: string;
 }
 
+export interface AttachmentItem {
+  id: string;
+  name: string;
+  url: string;
+  file_type?: string;
+  size?: number;
+  uploaded_by?: string;
+  created_at: string;
+}
+
+export interface ActivityItem {
+  id: string;
+  user_id: string;
+  user_name: string;
+  action: string;
+  detail: string;
+  created_at: string;
+}
+
+export interface NotificationItem {
+  id: string;
+  user_id: string;
+  actor_id: string;
+  actor_name: string;
+  actor_avatar?: string;
+  action_type: 'assigned' | 'comment' | 'status' | 'mention' | 'ai';
+  title: string;
+  message: string;
+  task_id?: string;
+  board_id?: string;
+  workspace_id?: string;
+  is_read: boolean;
+  created_at: string;
+}
+
 export interface Task {
   id: string;
   board_id: string;
@@ -122,6 +159,9 @@ export interface Task {
   due_date?: string | null;
   checklists: Subtask[];
   comments?: TaskComment[];
+  attachments?: AttachmentItem[];
+  activity_log?: ActivityItem[];
+  story_points?: number | null;
   ai_generated?: boolean;
   created_by?: string;
   created_at: string;

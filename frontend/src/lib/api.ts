@@ -8,7 +8,8 @@ import {
   TaskBreakdownResponse,
   NoteSummary,
   ActionItem,
-  Priority
+  Priority,
+  NotificationItem,
 } from '@/types';
 
 const API_BASE = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8000';
@@ -241,6 +242,43 @@ class ApiClient {
     return this.request<Board[]>(`/api/workspaces/${workspaceId}/boards`);
   }
 
+  async createBoard(payload: {
+    workspace_id: string;
+    title: string;
+    description?: string;
+    start_date?: string;
+    end_date?: string;
+    columns?: any[];
+  }): Promise<Board> {
+    return this.request<Board>('/api/boards', {
+      method: 'POST',
+      body: JSON.stringify(payload),
+    });
+  }
+
+  async updateBoard(
+    boardId: string,
+    updates: { title?: string; description?: string; start_date?: string; end_date?: string }
+  ): Promise<Board> {
+    return this.request<Board>(`/api/boards/${boardId}`, {
+      method: 'PUT',
+      body: JSON.stringify(updates),
+    });
+  }
+
+  async updateBoardColumns(boardId: string, columns: any[]): Promise<Board> {
+    return this.request<Board>(`/api/boards/${boardId}/columns`, {
+      method: 'PUT',
+      body: JSON.stringify({ columns }),
+    });
+  }
+
+  async deleteBoard(boardId: string): Promise<any> {
+    return this.request(`/api/boards/${boardId}`, {
+      method: 'DELETE',
+    });
+  }
+
   // Boards & Tasks
   async getBoard(boardId: string): Promise<Board> {
     return this.request<Board>(`/api/boards/${boardId}`);
@@ -343,6 +381,46 @@ class ApiClient {
     return this.request<Task>('/api/ai/convert-action-to-task', {
       method: 'POST',
       body: JSON.stringify(payload),
+    });
+  }
+
+  async generateStandup(boardId: string): Promise<{
+    date: string;
+    summary: string;
+    done: string[];
+    in_progress: string[];
+    blockers: string[];
+  }> {
+    return this.request('/api/ai/standup', {
+      method: 'POST',
+      body: JSON.stringify({ board_id: boardId }),
+    });
+  }
+
+  async generateTaskAssistant(title: string, description?: string): Promise<{
+    suggested_checklists: string[];
+    acceptance_criteria: string[];
+  }> {
+    return this.request('/api/ai/task-assistant', {
+      method: 'POST',
+      body: JSON.stringify({ title, description }),
+    });
+  }
+
+  // Notifications
+  async getNotifications(): Promise<NotificationItem[]> {
+    return this.request<NotificationItem[]>('/api/notifications');
+  }
+
+  async markNotificationRead(notifId: string): Promise<any> {
+    return this.request(`/api/notifications/${notifId}/read`, {
+      method: 'PUT',
+    });
+  }
+
+  async markAllNotificationsRead(): Promise<any> {
+    return this.request('/api/notifications/read-all', {
+      method: 'PUT',
     });
   }
 }

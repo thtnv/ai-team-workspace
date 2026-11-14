@@ -19,6 +19,24 @@ class CommentItem(BaseModel):
     created_at: str
 
 
+class AttachmentItem(BaseModel):
+    id: str
+    name: str
+    url: str
+    file_type: str = "image"
+    size: Optional[int] = None
+    created_at: str
+
+
+class ActivityItem(BaseModel):
+    id: str
+    user_id: str
+    user_name: str
+    action: str
+    detail: str
+    created_at: str
+
+
 class CommentCreate(BaseModel):
     content: str = Field(..., min_length=1, max_length=3000)
 
@@ -35,6 +53,8 @@ class TaskCreate(BaseModel):
     tags: List[str] = []
     due_date: Optional[str] = None
     checklists: List[SubtaskItem] = []
+    attachments: Optional[List[AttachmentItem]] = []
+    story_points: Optional[int] = None
     ai_generated: bool = False
 
 
@@ -48,6 +68,9 @@ class TaskUpdate(BaseModel):
     tags: Optional[List[str]] = None
     due_date: Optional[str] = None
     checklists: Optional[List[SubtaskItem]] = None
+    attachments: Optional[List[AttachmentItem]] = None
+    activity_log: Optional[List[ActivityItem]] = None
+    story_points: Optional[int] = None
 
 
 class TaskMoveRequest(BaseModel):
@@ -72,8 +95,12 @@ class TaskResponse(BaseSchema):
     due_date: Optional[str] = None
     checklists: List[SubtaskItem] = []
     comments: List[CommentItem] = []
+    attachments: List[AttachmentItem] = []
+    activity_log: List[ActivityItem] = []
+    story_points: Optional[int] = None
     ai_generated: bool = False
     created_by: Optional[str] = None
     created_at: str
     updated_at: str
+
 

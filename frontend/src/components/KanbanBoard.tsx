@@ -13,6 +13,7 @@ import {
   pointerWithin,
 } from '@dnd-kit/core';
 import confetti from 'canvas-confetti';
+import { Plus, X, Palette, Check } from 'lucide-react';
 import { useStore } from '@/store/useStore';
 import { KanbanColumn } from './KanbanColumn';
 import { TaskCard } from './TaskCard';
@@ -20,9 +21,22 @@ import { Task, sortTasksList } from '@/types';
 import { socketService } from '@/lib/socket';
 import { api } from '@/lib/api';
 
+const PRESET_COLORS = [
+  '#64748b', // slate
+  '#38bdf8', // sky
+  '#818cf8', // indigo
+  '#a855f7', // purple
+  '#facc15', // yellow
+  '#f97316', // orange
+  '#22c55e', // green
+  '#f43f5e', // rose
+];
+
 export const KanbanBoard: React.FC = () => {
   const {
     currentBoard,
+    currentWorkspace,
+    setCurrentBoard,
     tasks,
     setTasks,
     moveTaskOptimistic,
@@ -43,6 +57,14 @@ export const KanbanBoard: React.FC = () => {
   } = useStore();
 
   const [activeTask, setActiveTask] = useState<Task | null>(null);
+  const [isAddingColumn, setIsAddingColumn] = useState(false);
+  const [newColTitle, setNewColTitle] = useState('');
+  const [newColColor, setNewColColor] = useState(PRESET_COLORS[0]);
+
+  // Workspace admin / owner check
+  const isOwner = Boolean(currentUser && currentWorkspace && currentUser.id === currentWorkspace.owner_id);
+  const currentMember = currentWorkspace?.members?.find((m) => m.user_id === currentUser?.id);
+  const isAdmin = Boolean(isOwner || currentMember?.role === 'admin');
 
   // Filter tasks based on Search Keyword, Priority, Tag, and My Tasks Only
   const filteredTasks = useMemo(() => {
@@ -146,6 +168,15 @@ export const KanbanBoard: React.FC = () => {
       }
     };
 
+    const handleColumnsUpdated = (data: { board_id: string; columns: any[] }) => {
+      if (data.board_id === currentBoard.id) {
+        setCurrentBoard({
+          ...currentBoard,
+          columns: data.columns,
+        });
+      }
+    };
+
     socket.on('task:moved', handleRemoteTaskMoved);
     socket.on('task:created', handleRemoteTaskCreated);
     socket.on('task:updated', handleRemoteTaskUpdated);
@@ -154,6 +185,7 @@ export const KanbanBoard: React.FC = () => {
     socket.on('task:locked', handleTaskLocked);
     socket.on('task:unlocked', handleTaskUnlocked);
     socket.on('task:comment_added', handleCommentAdded);
+    socket.on('columns_updated', handleColumnsUpdated);
 
     return () => {
       socket.off('task:moved', handleRemoteTaskMoved);
@@ -164,6 +196,7 @@ export const KanbanBoard: React.FC = () => {
       socket.off('task:locked', handleTaskLocked);
       socket.off('task:unlocked', handleTaskUnlocked);
       socket.off('task:comment_added', handleCommentAdded);
+      socket.off('columns_updated', handleColumnsUpdated);
       socketService.leaveBoard(currentBoard.id);
     };
   }, [currentBoard?.id, currentUser]);
@@ -266,6 +299,44 @@ export const KanbanBoard: React.FC = () => {
     { id: 'col-done', title: 'Done', order: 3, color: '#22c55e' },
   ];
 
+  const handleAddColumn = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!newColTitle.trim() || !currentBoard) return;
+    const colId = `col-${Date.now()}`;
+    const newColumns = [
+      ...columns,
+      {
+        id: colId,
+        title: newColTitle.trim(),
+        order: columns.length,
+        color: newColColor,
+      },
+    ];
+
+    try {
+      const updatedBoard = await api.updateBoardColumns(currentBoard.id, newColumns);
+      setCurrentBoard(updatedBoard);
+      setNewColTitle('');
+      setIsAddingColumn(false);
+    } catch (err: any) {
+      alert(err.message || 'Không thể thêm cột mới.');
+    }
+  };
+
+  const handleDeleteColumn = async (colId: string) => {
+    if (!currentBoard) return;
+    const remainingColumns = columns.filter((c) => c.id !== colId);
+    try {
+      const updatedBoard = await api.updateBoardColumns(currentBoard.id, remainingColumns);
+      setCurrentBoard(updatedBoard);
+      setTasks(
+        tasks.map((t) => (t.column_id === colId ? { ...t, column_id: 'col-todo' } : t))
+      );
+    } catch (err: any) {
+      alert(err.message || 'Không thể xóa cột.');
+    }
+  };
+
   return (
     <div className="flex-1 min-h-0 w-full p-3 bg-slate-50 flex flex-col overflow-hidden">
       <DndContext
@@ -274,8 +345,8 @@ export const KanbanBoard: React.FC = () => {
         onDragStart={handleDragStart}
         onDragEnd={handleDragEnd}
       >
-        {/* Responsive Grid with 4 equal columns fitting 100% of width, NO horizontal scroll */}
-        <div className="grid grid-cols-4 gap-3 h-full min-h-0 w-full items-stretch">
+        {/* Dynamic Horizontal Columns layout: flex with auto-fill or scroll when > 4 */}
+        <div className="flex gap-3 h-full min-h-0 w-full overflow-x-auto pb-1 items-stretch scrollbar-thin">
           {columns.map((column) => {
             const columnTasks = sortTasksList(
               filteredTasks.filter((t) => t.column_id === column.id),
@@ -283,13 +354,100 @@ export const KanbanBoard: React.FC = () => {
             );
 
             return (
-              <KanbanColumn
+              <div
                 key={column.id}
-                column={column}
-                tasks={columnTasks}
-              />
+                className="flex-1 min-w-[270px] max-w-[360px] h-full min-h-0 flex flex-col"
+              >
+                <KanbanColumn
+                  column={column}
+                  tasks={columnTasks}
+                  canDelete={isAdmin}
+                  onDeleteColumn={handleDeleteColumn}
+                />
+              </div>
             );
           })}
+
+          {/* Add Column Button / Popover (Admin Only) */}
+          {isAdmin && (
+            <div className="flex-shrink-0 w-72 h-full min-h-0 flex flex-col">
+              {isAddingColumn ? (
+                <div className="rounded-xl border border-slate-300 bg-white p-3 shadow-md space-y-3 animate-in fade-in zoom-in-95 duration-100">
+                  <div className="flex items-center justify-between border-b border-slate-100 pb-2">
+                    <span className="text-xs font-bold text-slate-900">Thêm cột mới</span>
+                    <button
+                      type="button"
+                      onClick={() => setIsAddingColumn(false)}
+                      className="p-1 rounded text-slate-400 hover:text-slate-700 transition"
+                    >
+                      <X className="h-3.5 w-3.5" />
+                    </button>
+                  </div>
+
+                  <form onSubmit={handleAddColumn} className="space-y-2.5">
+                    <div>
+                      <label className="text-[10px] font-bold uppercase tracking-wider text-slate-500">
+                        Tên cột:
+                      </label>
+                      <input
+                        type="text"
+                        autoFocus
+                        value={newColTitle}
+                        onChange={(e) => setNewColTitle(e.target.value)}
+                        placeholder="VD: QA Testing, Blocked..."
+                        className="mt-1 w-full rounded-lg border border-slate-200 bg-slate-50 px-2.5 py-1.5 text-xs font-medium text-slate-900 focus:bg-white focus:border-slate-800 focus:outline-hidden"
+                      />
+                    </div>
+
+                    <div>
+                      <label className="text-[10px] font-bold uppercase tracking-wider text-slate-500">
+                        Màu sắc nhận diện:
+                      </label>
+                      <div className="mt-1.5 flex items-center gap-1.5 flex-wrap">
+                        {PRESET_COLORS.map((col) => (
+                          <button
+                            key={col}
+                            type="button"
+                            onClick={() => setNewColColor(col)}
+                            className="h-5 w-5 rounded-full flex items-center justify-center transition hover:scale-110 shadow-2xs"
+                            style={{ backgroundColor: col }}
+                          >
+                            {newColColor === col && <Check className="h-3 w-3 text-white" />}
+                          </button>
+                        ))}
+                      </div>
+                    </div>
+
+                    <div className="flex items-center justify-end gap-2 pt-2 border-t border-slate-100">
+                      <button
+                        type="button"
+                        onClick={() => setIsAddingColumn(false)}
+                        className="rounded-lg px-2.5 py-1 text-xs font-semibold text-slate-600 hover:bg-slate-100 transition"
+                      >
+                        Hủy
+                      </button>
+                      <button
+                        type="submit"
+                        disabled={!newColTitle.trim()}
+                        className="rounded-lg bg-slate-900 px-3 py-1 text-xs font-bold text-white hover:bg-slate-800 transition disabled:opacity-40"
+                      >
+                        Tạo cột
+                      </button>
+                    </div>
+                  </form>
+                </div>
+              ) : (
+                <button
+                  type="button"
+                  onClick={() => setIsAddingColumn(true)}
+                  className="w-full flex items-center justify-center gap-2 rounded-xl border-2 border-dashed border-slate-200 hover:border-slate-300 hover:bg-slate-100/60 p-4 text-xs font-bold text-slate-500 hover:text-slate-800 transition cursor-pointer"
+                >
+                  <Plus className="h-4 w-4" />
+                  <span>Thêm cột</span>
+                </button>
+              )}
+            </div>
+          )}
         </div>
 
         {/* Drag Overlay */}

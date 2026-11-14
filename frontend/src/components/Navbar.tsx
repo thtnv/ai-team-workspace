@@ -1,9 +1,11 @@
 'use client';
 
-import React, { useState } from 'react';
+import React, { useState, useRef, useEffect } from 'react';
 import { useStore } from '@/store/useStore';
 import { api } from '@/lib/api';
 import { socketService } from '@/lib/socket';
+import { NotificationCenter } from './NotificationCenter';
+import { Board } from '@/types';
 import {
   Sparkles,
   FileText,
@@ -16,6 +18,8 @@ import {
   Users,
   Settings,
   Zap,
+  FolderKanban,
+  Check,
 } from 'lucide-react';
 
 export const Navbar: React.FC = () => {
@@ -24,6 +28,9 @@ export const Navbar: React.FC = () => {
     setCurrentUser,
     currentWorkspace,
     currentBoard,
+    setCurrentBoard,
+    boards,
+    setTasks,
     activePresenceUsers,
     setPresenceUsers,
     setAIBreakdownOpen,
@@ -33,9 +40,28 @@ export const Navbar: React.FC = () => {
     setOnboardingOpen,
     setInviteModalOpen,
     setWorkspaceSettingsOpen,
+    setCreateSprintOpen,
+    setStandupModalOpen,
   } = useStore();
 
   const [menuOpen, setMenuOpen] = useState(false);
+  const [sprintMenuOpen, setSprintMenuOpen] = useState(false);
+  const sprintMenuRef = useRef<HTMLDivElement>(null);
+  const userMenuRef = useRef<HTMLDivElement>(null);
+
+  // Close menus on outside click
+  useEffect(() => {
+    const handleClickOutside = (e: MouseEvent) => {
+      if (sprintMenuRef.current && !sprintMenuRef.current.contains(e.target as Node)) {
+        setSprintMenuOpen(false);
+      }
+      if (userMenuRef.current && !userMenuRef.current.contains(e.target as Node)) {
+        setMenuOpen(false);
+      }
+    };
+    document.addEventListener('mousedown', handleClickOutside);
+    return () => document.removeEventListener('mousedown', handleClickOutside);
+  }, []);
 
   // User workspace role calculation
   const isOwner = Boolean(currentUser && currentWorkspace && currentUser.id === currentWorkspace.owner_id);
@@ -58,6 +84,32 @@ export const Navbar: React.FC = () => {
     setPresenceUsers([]);
     setMenuOpen(false);
     setLoginModalOpen(true);
+  };
+
+  const handleSwitchBoard = async (board: Board) => {
+    if (currentBoard?.id === board.id) {
+      setSprintMenuOpen(false);
+      return;
+    }
+    if (currentBoard) {
+      socketService.leaveBoard(currentBoard.id);
+    }
+    setCurrentBoard(board);
+    setSprintMenuOpen(false);
+    try {
+      const boardTasks = await api.getBoardTasks(board.id);
+      setTasks(boardTasks);
+      if (currentUser) {
+        socketService.joinBoard(board.id, {
+          id: currentUser.id,
+          name: currentUser.full_name,
+          email: currentUser.email,
+          avatar_url: currentUser.avatar_url,
+        });
+      }
+    } catch (e) {
+      console.warn('Failed to load tasks for board:', e);
+    }
   };
 
   // Deduplicate presence users by user_id
@@ -124,9 +176,73 @@ export const Navbar: React.FC = () => {
               )}
             </div>
             <span className="text-slate-400">/</span>
-            <span className="text-xs font-bold text-slate-800 truncate max-w-[180px]">
-              {currentBoard?.title || 'Sprint 1'}
-            </span>
+            
+            {/* Sprint Switcher Dropdown */}
+            <div className="relative" ref={sprintMenuRef}>
+              <button
+                type="button"
+                onClick={() => setSprintMenuOpen(!sprintMenuOpen)}
+                className="flex items-center gap-1.5 rounded-md hover:bg-slate-100 px-2 py-0.5 text-xs font-bold text-slate-800 transition cursor-pointer max-w-[200px]"
+                title="Chuyển đổi Sprint / Chu kỳ làm việc"
+              >
+                <FolderKanban className="h-3.5 w-3.5 text-slate-600 shrink-0" />
+                <span className="truncate">{currentBoard?.title || 'Sprint 1'}</span>
+                <ChevronDown className={`h-3 w-3 text-slate-400 shrink-0 transition-transform ${sprintMenuOpen ? 'rotate-180' : ''}`} />
+              </button>
+
+              {sprintMenuOpen && (
+                <div className="absolute left-0 mt-1.5 w-64 rounded-xl border border-slate-200 bg-white p-1.5 shadow-xl z-50 animate-in fade-in zoom-in-95 duration-100 space-y-1">
+                  <div className="px-2 py-1 text-[10px] font-bold uppercase tracking-wider text-slate-400 border-b border-slate-100 mb-1 flex items-center justify-between">
+                    <span>Sprints ({boards.length})</span>
+                    {currentWorkspace && <span className="font-mono text-[9px] text-slate-500 truncate max-w-[100px]">{currentWorkspace.name}</span>}
+                  </div>
+
+                  <div className="max-h-48 overflow-y-auto space-y-0.5 pr-0.5 scrollbar-thin">
+                    {boards.map((b) => {
+                      const isSelected = currentBoard?.id === b.id;
+                      return (
+                        <button
+                          key={b.id}
+                          type="button"
+                          onClick={() => handleSwitchBoard(b)}
+                          className={`w-full flex items-center justify-between rounded-lg px-2.5 py-1.5 text-xs text-left transition cursor-pointer ${
+                            isSelected
+                              ? 'bg-slate-900 text-white font-bold'
+                              : 'text-slate-700 hover:bg-slate-100 font-medium'
+                          }`}
+                        >
+                          <div className="min-w-0 pr-2">
+                            <p className="truncate text-xs font-bold">{b.title}</p>
+                            {b.start_date && b.end_date && (
+                              <p className="text-[10px] opacity-75 truncate">
+                                {b.start_date} - {b.end_date}
+                              </p>
+                            )}
+                          </div>
+                          {isSelected && <Check className="h-3.5 w-3.5 text-[#D4FF00] shrink-0" />}
+                        </button>
+                      );
+                    })}
+                  </div>
+
+                  {isAdmin && (
+                    <div className="pt-1 border-t border-slate-100 mt-1">
+                      <button
+                        type="button"
+                        onClick={() => {
+                          setSprintMenuOpen(false);
+                          setCreateSprintOpen(true);
+                        }}
+                        className="w-full flex items-center gap-1.5 rounded-lg px-2 py-1.5 text-xs font-bold text-slate-900 hover:bg-slate-100 transition cursor-pointer"
+                      >
+                        <Plus className="h-3.5 w-3.5 text-slate-700" />
+                        <span>Tạo Sprint mới</span>
+                      </button>
+                    </div>
+                  )}
+                </div>
+              )}
+            </div>
           </div>
         </div>
 
@@ -185,6 +301,16 @@ export const Navbar: React.FC = () => {
                 <span className="hidden md:inline">Notes</span>
               </button>
 
+              {/* AI Daily Standup Report Button */}
+              <button
+                onClick={() => setStandupModalOpen(true)}
+                className="flex items-center gap-1.5 rounded-lg border border-slate-300 bg-white px-2.5 py-1.5 text-xs font-semibold text-slate-800 transition hover:bg-slate-100 active:scale-95 cursor-pointer shadow-2xs"
+                title="Báo cáo Daily Standup AI tự động (Hôm qua, Hôm nay, Blockers)"
+              >
+                <Sparkles className="h-3.5 w-3.5 text-amber-500" />
+                <span className="hidden lg:inline">Standup</span>
+              </button>
+
               {/* Add Task Quick Button */}
               <button
                 onClick={() => setCreateTaskOpen(true, 'col-todo')}
@@ -192,7 +318,7 @@ export const Navbar: React.FC = () => {
                 title="Thêm task mới"
               >
                 <Plus className="h-3.5 w-3.5" />
-                <span className="hidden lg:inline">+ Task</span>
+                <span className="hidden xl:inline">+ Task</span>
               </button>
 
               {/* Invite Members Button (Admin / Owner only) */}
@@ -207,13 +333,16 @@ export const Navbar: React.FC = () => {
                 </button>
               )}
 
+              {/* In-App Notification Center */}
+              <NotificationCenter />
+
               <div className="h-4 w-px bg-slate-200" />
             </>
           )}
 
           {/* User Profile / Login Button */}
           {currentUser ? (
-            <div className="relative">
+            <div className="relative" ref={userMenuRef}>
               <button
                 onClick={() => setMenuOpen(!menuOpen)}
                 className="flex items-center gap-1.5 rounded-lg p-1 hover:bg-slate-100 border border-transparent hover:border-slate-200 transition cursor-pointer"

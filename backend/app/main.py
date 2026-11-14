@@ -8,7 +8,7 @@ from app.core.config import settings
 from app.db.mongodb import db_manager
 from app.db.seed import seed_initial_data
 from app.sockets.socket_manager import sio
-from app.api import auth, workspaces, boards, tasks, notes, ai
+from app.api import auth, workspaces, boards, tasks, notes, ai, notifications
 
 # Setup logging
 logging.basicConfig(
@@ -53,6 +53,7 @@ app.include_router(boards.router, prefix=settings.API_V1_STR)
 app.include_router(tasks.router, prefix=settings.API_V1_STR)
 app.include_router(notes.router, prefix=settings.API_V1_STR)
 app.include_router(ai.router, prefix=settings.API_V1_STR)
+app.include_router(notifications.router, prefix=settings.API_V1_STR)
 
 
 @app.get("/")

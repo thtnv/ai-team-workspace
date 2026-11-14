@@ -109,3 +109,31 @@ async def convert_action_to_task(req: ConvertActionToTaskRequest, current_user: 
 
     return res
 
+
+@router.post("/standup")
+async def generate_standup(payload: dict, current_user: dict = Depends(get_current_user)):
+    """Generate AI Daily Standup report for a specific board."""
+    board_id = payload.get("board_id")
+    if not board_id:
+        raise HTTPException(status_code=400, detail="board_id is required")
+
+    tasks_col = db_manager.get_collection("tasks")
+    cursor = tasks_col.find({"board_id": board_id})
+    tasks = await cursor.to_list(200)
+
+    report = await ai_service.generate_standup_report(tasks)
+    return report
+
+
+@router.post("/task-assistant")
+async def generate_task_assistant(payload: dict, current_user: dict = Depends(get_current_user)):
+    """Generate smart checklist suggestions and acceptance criteria for a task."""
+    title = payload.get("title", "").strip()
+    description = payload.get("description", "").strip()
+    if not title:
+        raise HTTPException(status_code=400, detail="title is required")
+
+    result = await ai_service.generate_task_assistant(title, description)
+    return result
+
+

@@ -3,9 +3,10 @@ from datetime import datetime, timezone
 from typing import List
 from fastapi import APIRouter, HTTPException, status, Depends
 from app.db.mongodb import db_manager
-from app.schemas.board import BoardCreate, BoardResponse, BoardColumn
+from app.schemas.board import BoardCreate, BoardUpdate, BoardColumnsUpdate, BoardResponse, BoardColumn
 from app.schemas.task import TaskResponse, SubtaskItem, CommentItem
 from app.api.auth import get_current_user
+from app.sockets.socket_manager import broadcast_board_event
 
 router = APIRouter(prefix="/boards", tags=["Boards"])
 
@@ -22,6 +23,8 @@ async def get_board(board_id: str, current_user: dict = Depends(get_current_user
         workspace_id=board["workspace_id"],
         title=board["title"],
         description=board.get("description", ""),
+        start_date=board.get("start_date"),
+        end_date=board.get("end_date"),
         columns=board["columns"],
         created_by=str(board.get("created_by", "")),
         created_at=board.get("created_at", ""),
@@ -80,6 +83,8 @@ async def create_board(req: BoardCreate, current_user: dict = Depends(get_curren
         "workspace_id": req.workspace_id,
         "title": req.title,
         "description": req.description or "",
+        "start_date": req.start_date,
+        "end_date": req.end_date,
         "columns": [c.model_dump() for c in columns],
         "created_by": user_id,
         "created_at": now_iso,
@@ -92,9 +97,101 @@ async def create_board(req: BoardCreate, current_user: dict = Depends(get_curren
         workspace_id=doc["workspace_id"],
         title=doc["title"],
         description=doc["description"],
+        start_date=doc["start_date"],
+        end_date=doc["end_date"],
         columns=columns,
         created_by=user_id,
         created_at=now_iso,
         updated_at=now_iso
     )
+
+
+@router.put("/{board_id}", response_model=BoardResponse)
+async def update_board(board_id: str, req: BoardUpdate, current_user: dict = Depends(get_current_user)):
+    boards_col = db_manager.get_collection("boards")
+    board = await boards_col.find_one({"_id": board_id})
+    if not board:
+        raise HTTPException(status_code=404, detail="Board not found")
+
+    updates = {}
+    if req.title is not None and req.title.strip():
+        updates["title"] = req.title.strip()
+    if req.description is not None:
+        updates["description"] = req.description.strip()
+    if req.start_date is not None:
+        updates["start_date"] = req.start_date
+    if req.end_date is not None:
+        updates["end_date"] = req.end_date
+
+    updates["updated_at"] = datetime.now(timezone.utc).isoformat()
+    await boards_col.update_one({"_id": board_id}, {"$set": updates})
+    updated = await boards_col.find_one({"_id": board_id})
+
+    return BoardResponse(
+        id=str(updated["_id"]),
+        workspace_id=updated["workspace_id"],
+        title=updated["title"],
+        description=updated.get("description", ""),
+        start_date=updated.get("start_date"),
+        end_date=updated.get("end_date"),
+        columns=updated["columns"],
+        created_by=str(updated.get("created_by", "")),
+        created_at=updated.get("created_at", ""),
+        updated_at=updated.get("updated_at", "")
+    )
+
+
+@router.put("/{board_id}/columns", response_model=BoardResponse)
+async def update_board_columns(board_id: str, req: BoardColumnsUpdate, current_user: dict = Depends(get_current_user)):
+    boards_col = db_manager.get_collection("boards")
+    board = await boards_col.find_one({"_id": board_id})
+    if not board:
+        raise HTTPException(status_code=404, detail="Board not found")
+
+    now_iso = datetime.now(timezone.utc).isoformat()
+    columns_data = [c.model_dump() for c in req.columns]
+
+    await boards_col.update_one(
+        {"_id": board_id},
+        {"$set": {"columns": columns_data, "updated_at": now_iso}}
+    )
+
+    # Broadcast event to other members viewing this board
+    await broadcast_board_event(board_id, "columns_updated", {"columns": columns_data})
+
+    updated = await boards_col.find_one({"_id": board_id})
+    return BoardResponse(
+        id=str(updated["_id"]),
+        workspace_id=updated["workspace_id"],
+        title=updated["title"],
+        description=updated.get("description", ""),
+        start_date=updated.get("start_date"),
+        end_date=updated.get("end_date"),
+        columns=updated["columns"],
+        created_by=str(updated.get("created_by", "")),
+        created_at=updated.get("created_at", ""),
+        updated_at=updated.get("updated_at", "")
+    )
+
+
+@router.delete("/{board_id}")
+async def delete_board(board_id: str, current_user: dict = Depends(get_current_user)):
+    boards_col = db_manager.get_collection("boards")
+    tasks_col = db_manager.get_collection("tasks")
+    board = await boards_col.find_one({"_id": board_id})
+    if not board:
+        raise HTTPException(status_code=404, detail="Board not found")
+
+    # Check if this is the only board in the workspace
+    workspace_id = board["workspace_id"]
+    count = await boards_col.count_documents({"workspace_id": workspace_id})
+    if count <= 1:
+        raise HTTPException(status_code=400, detail="Không thể xóa Sprint/Bảng duy nhất của không gian làm việc.")
+
+    await boards_col.delete_one({"_id": board_id})
+    # Clean up tasks on this board
+    await tasks_col.delete_many({"board_id": board_id})
+
+    return {"message": "Đã xóa Sprint thành công", "deleted_board_id": board_id}
+
 

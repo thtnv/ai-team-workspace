@@ -228,5 +228,101 @@ class AIService:
             action_items=action_items
         )
 
+    async def generate_standup_report(self, tasks: List[dict]) -> dict:
+        """Generate structured Daily Standup report based on board's task progress."""
+        from datetime import datetime
+        today_str = datetime.now().strftime("%d/%m/%Y")
+
+        done_titles = [t["title"] for t in tasks if t.get("column_id") == "col-done"]
+        inprogress_titles = [t["title"] for t in tasks if t.get("column_id") == "col-inprogress"]
+        urgent_titles = [t["title"] for t in tasks if t.get("priority") == "urgent" and t.get("column_id") != "col-done"]
+
+        if self.client:
+            from google.genai import types
+            prompt = f"""
+            You are an Agile Scrum Master. Generate a concise Daily Standup report in Vietnamese based on current tasks:
+            Completed Tasks: {done_titles}
+            In Progress Tasks: {inprogress_titles}
+            Urgent / Risk Tasks: {urgent_titles}
+
+            Return strictly a JSON object:
+            {{
+                "summary": "Tóm tắt tiến độ chung của đội trong 2-3 câu",
+                "done": ["Mục đã làm xong 1", "Mục đã làm xong 2"],
+                "in_progress": ["Mục đang làm 1", "Mục đang làm 2"],
+                "blockers": ["Các rủi ro/khó khăn cần chú ý nếu có"]
+            }}
+            """
+            try:
+                res = await self.client.aio.models.generate_content(
+                    model=self.model_name,
+                    contents=prompt,
+                    config=types.GenerateContentConfig(response_mime_type="application/json")
+                )
+                data = json.loads(res.text)
+                return {"date": today_str, **data}
+            except Exception as e:
+                logger.warning(f"Standup Gemini generation failed ({e}), falling back to internal generator.")
+
+        # Fallback generator
+        summary = f"Tiến độ ngày {today_str}: Đội đã hoàn thành {len(done_titles)} việc, đang triển khai {len(inprogress_titles)} việc."
+        if urgent_titles:
+            summary += f" Cần chú ý {len(urgent_titles)} việc khẩn cấp."
+
+        return {
+            "date": today_str,
+            "summary": summary,
+            "done": done_titles or ["Tiếp tục hoàn thiện các đầu việc tồn đọng."],
+            "in_progress": inprogress_titles or ["Đang chuẩn bị nhận các task mới trong sprint."],
+            "blockers": [f"Việc khẩn cấp cần ưu tiên xử lý: {t}" for t in urgent_titles] or ["Hiện tại không có rào cản kỹ thuật nghiêm trọng."]
+        }
+
+    async def generate_task_assistant(self, title: str, description: str = "") -> dict:
+        """Generate smart checklist suggestions and acceptance criteria for a task."""
+        if self.client:
+            from google.genai import types
+            prompt = f"""
+            You are a Senior QA Engineer & Tech Lead. Suggest 4-5 test checklist items and acceptance criteria in Vietnamese for:
+            Task Title: "{title}"
+            Task Description: "{description}"
+
+            Return strictly a JSON object:
+            {{
+                "suggested_checklists": [
+                    "Bước kiểm thử hoặc việc cần làm 1",
+                    "Bước kiểm thử hoặc việc cần làm 2",
+                    "Bước kiểm thử hoặc việc cần làm 3"
+                ],
+                "acceptance_criteria": [
+                    "Tiêu chí nghiệm thu 1",
+                    "Tiêu chí nghiệm thu 2"
+                ]
+            }}
+            """
+            try:
+                res = await self.client.aio.models.generate_content(
+                    model=self.model_name,
+                    contents=prompt,
+                    config=types.GenerateContentConfig(response_mime_type="application/json")
+                )
+                return json.loads(res.text)
+            except Exception as e:
+                logger.warning(f"Task assistant Gemini generation failed ({e}), falling back.")
+
+        # Contextual fallback checklist generator
+        return {
+            "suggested_checklists": [
+                f"Kiểm thử chức năng chính của '{title}' trên môi trường Local",
+                "Xử lý các trường hợp ngoại lệ (Edge Cases, Validation lỗi, Timeout)",
+                "Đảm bảo giao diện hiển thị chuẩn Responsive trên Mobile & Desktop",
+                "Viết Unit/Integration Test và chạy kiểm tra không có hồi quy",
+                "Tạo Pull Request và đối chiếu Code Review với đồng đội"
+            ],
+            "acceptance_criteria": [
+                "Luồng dữ liệu hoạt động trơn tru không phát sinh lỗi Console",
+                "Được xác nhận bởi ít nhất 1 thành viên qua Code Review"
+            ]
+        }
+
 
 ai_service = AIService()

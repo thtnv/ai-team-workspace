@@ -7,12 +7,15 @@ import { socketService } from '@/lib/socket';
 import { Navbar } from '@/components/Navbar';
 import { KanbanBoard } from '@/components/KanbanBoard';
 import { ListView } from '@/components/ListView';
+import { CalendarView } from '@/components/CalendarView';
 import { FilterBar } from '@/components/FilterBar';
 import { QuickStartSteps } from '@/components/QuickStartSteps';
 import { CommandPalette } from '@/components/CommandPalette';
 import { ProductWalkthrough } from '@/components/ProductWalkthrough';
 import { LoginModal } from '@/components/LoginModal';
 import { OnboardingModal } from '@/components/OnboardingModal';
+import { CreateSprintModal } from '@/components/CreateSprintModal';
+import { AIDailyStandupModal } from '@/components/AIDailyStandupModal';
 import { AIBreakdownModal, AINotesModal, TaskDetailModal, CreateTaskModal } from '@/app/member';
 import { InviteModal, WorkspaceSettingsModal } from '@/app/admin';
 import { ViewerBanner } from '@/app/viewer';
@@ -26,6 +29,7 @@ import {
   ChevronDown,
   Kanban,
   List,
+  Calendar,
   Search,
   Flame,
   Zap,
@@ -196,7 +200,7 @@ export default function Home() {
           {/* Subheader Right Actions: View Switch, Ctrl+K, Tour */}
           {currentUser && (
             <div className="flex items-center gap-2 flex-shrink-0">
-              {/* View Switch: Kanban ⟷ List */}
+              {/* View Switch: Kanban ⟷ List ⟷ Calendar */}
               <div className="flex items-center rounded-lg border border-slate-200 bg-slate-100/80 p-0.5 text-xs font-semibold">
                 <button
                   onClick={() => setCurrentView('kanban')}
@@ -221,6 +225,18 @@ export default function Home() {
                 >
                   <List className="h-3.5 w-3.5" />
                   <span className="hidden sm:inline">Danh sách</span>
+                </button>
+                <button
+                  onClick={() => setCurrentView('calendar')}
+                  className={`flex items-center gap-1.5 rounded-md px-2.5 py-1 transition cursor-pointer ${
+                    currentView === 'calendar'
+                      ? 'bg-white text-slate-900 shadow-2xs font-bold'
+                      : 'text-slate-600 hover:text-slate-900'
+                  }`}
+                  title="Chế độ xem Lịch (Monthly Calendar View)"
+                >
+                  <Calendar className="h-3.5 w-3.5" />
+                  <span className="hidden sm:inline">Lịch</span>
                 </button>
               </div>
 
@@ -306,6 +322,8 @@ export default function Home() {
           </div>
         ) : currentView === 'list' ? (
           <ListView />
+        ) : currentView === 'calendar' ? (
+          <CalendarView />
         ) : (
           <KanbanBoard />
         )}
@@ -316,6 +334,8 @@ export default function Home() {
       <AINotesModal />
       <TaskDetailModal />
       <CreateTaskModal />
+      <CreateSprintModal />
+      <AIDailyStandupModal />
       <LoginModal />
       <OnboardingModal />
       {isAdmin && (

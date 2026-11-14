@@ -1,5 +1,5 @@
 import { create } from 'zustand';
-import { User, Workspace, Board, Task, TaskComment, Note, PresenceUser, SortOption, DensityMode } from '@/types';
+import { User, Workspace, Board, Task, TaskComment, Note, PresenceUser, SortOption, DensityMode, Column, NotificationItem } from '@/types';
 
 interface AppState {
   // Auth & Core Context
@@ -9,8 +9,17 @@ interface AppState {
   boards: Board[];
   currentBoard: Board | null;
 
-  // View state: 'kanban' or 'list'
-  currentView: 'kanban' | 'list';
+  // View state: 'kanban', 'list', or 'calendar'
+  currentView: 'kanban' | 'list' | 'calendar';
+
+  // Notifications
+  notifications: NotificationItem[];
+  unreadNotificationsCount: number;
+  isNotificationsOpen: boolean;
+
+  // Sprint & Standup Modals
+  isCreateSprintOpen: boolean;
+  isStandupModalOpen: boolean;
 
   // Board Data
   tasks: Task[];
@@ -46,11 +55,21 @@ interface AppState {
   setCurrentWorkspace: (workspace: Workspace | null) => void;
   setBoards: (boards: Board[]) => void;
   setCurrentBoard: (board: Board | null) => void;
+  addBoardToStore: (board: Board) => void;
+  updateBoardColumnsInStore: (columns: Column[]) => void;
 
   setTasks: (tasks: Task[]) => void;
   addTask: (task: Task) => void;
   updateTask: (task: Task) => void;
   deleteTask: (taskId: string) => void;
+  addTaskComment: (taskId: string, comment: TaskComment) => void;
+
+  // Notifications actions
+  setNotifications: (notifications: NotificationItem[]) => void;
+  addNotification: (notification: NotificationItem) => void;
+  markNotificationAsRead: (id: string) => void;
+  markAllNotificationsAsRead: () => void;
+  setNotificationsOpen: (open: boolean) => void;
 
   // Optimistic Move & Rollback
   moveTaskOptimistic: (taskId: string, destColId: string, newOrder: number) => void;
@@ -77,12 +96,11 @@ interface AppState {
   resetFilters: () => void;
 
   // View action
-  setCurrentView: (view: 'kanban' | 'list') => void;
-
-  // Comments
-  addTaskComment: (taskId: string, comment: TaskComment) => void;
+  setCurrentView: (view: 'kanban' | 'list' | 'calendar') => void;
 
   // Modal actions
+  setCreateSprintOpen: (open: boolean) => void;
+  setStandupModalOpen: (open: boolean) => void;
   setAIBreakdownOpen: (open: boolean) => void;
   setAINotesOpen: (open: boolean) => void;
   setCreateTaskOpen: (open: boolean, colId?: string) => void;
@@ -105,6 +123,13 @@ export const useStore = create<AppState>((set, get) => ({
   currentBoard: null,
 
   currentView: 'kanban',
+
+  notifications: [],
+  unreadNotificationsCount: 0,
+  isNotificationsOpen: false,
+
+  isCreateSprintOpen: false,
+  isStandupModalOpen: false,
 
   tasks: [],
   notes: [],
@@ -136,6 +161,44 @@ export const useStore = create<AppState>((set, get) => ({
   setCurrentWorkspace: (workspace) => set({ currentWorkspace: workspace }),
   setBoards: (boards) => set({ boards }),
   setCurrentBoard: (board) => set({ currentBoard: board }),
+  addBoardToStore: (board) => set((state) => ({ boards: [...state.boards, board] })),
+  updateBoardColumnsInStore: (columns) =>
+    set((state) => ({
+      currentBoard: state.currentBoard ? { ...state.currentBoard, columns } : null,
+      boards: state.boards.map((b) => (b.id === state.currentBoard?.id ? { ...b, columns } : b)),
+    })),
+
+  setNotifications: (notifications) =>
+    set({
+      notifications,
+      unreadNotificationsCount: notifications.filter((n) => !n.is_read).length,
+    }),
+  addNotification: (notification) =>
+    set((state) => {
+      const exists = state.notifications.some((n) => n.id === notification.id);
+      if (exists) return state;
+      const updated = [notification, ...state.notifications];
+      return {
+        notifications: updated,
+        unreadNotificationsCount: updated.filter((n) => !n.is_read).length,
+      };
+    }),
+  markNotificationAsRead: (id) =>
+    set((state) => {
+      const updated = state.notifications.map((n) => (n.id === id ? { ...n, is_read: true } : n));
+      return {
+        notifications: updated,
+        unreadNotificationsCount: updated.filter((n) => !n.is_read).length,
+      };
+    }),
+  markAllNotificationsAsRead: () =>
+    set((state) => ({
+      notifications: state.notifications.map((n) => ({ ...n, is_read: true })),
+      unreadNotificationsCount: 0,
+    })),
+  setNotificationsOpen: (open) => set({ isNotificationsOpen: open }),
+  setCreateSprintOpen: (open) => set({ isCreateSprintOpen: open }),
+  setStandupModalOpen: (open) => set({ isStandupModalOpen: open }),
 
   setTasks: (tasks) => set({ tasks }),
 

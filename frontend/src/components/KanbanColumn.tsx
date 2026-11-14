@@ -6,14 +6,21 @@ import { SortableContext, verticalListSortingStrategy } from '@dnd-kit/sortable'
 import { Column, Task } from '@/types';
 import { TaskCard } from './TaskCard';
 import { useStore } from '@/store/useStore';
-import { Plus } from 'lucide-react';
+import { Plus, Trash2 } from 'lucide-react';
 
 interface KanbanColumnProps {
   column: Column;
   tasks: Task[];
+  canDelete?: boolean;
+  onDeleteColumn?: (columnId: string) => void;
 }
 
-const KanbanColumnComponent: React.FC<KanbanColumnProps> = ({ column, tasks }) => {
+const KanbanColumnComponent: React.FC<KanbanColumnProps> = ({
+  column,
+  tasks,
+  canDelete = false,
+  onDeleteColumn,
+}) => {
   const setCreateTaskOpen = useStore((s) => s.setCreateTaskOpen);
   const { setNodeRef, isOver } = useDroppable({
     id: column.id,
@@ -22,6 +29,15 @@ const KanbanColumnComponent: React.FC<KanbanColumnProps> = ({ column, tasks }) =
       column,
     },
   });
+
+  const isDefaultColumn = ['col-todo', 'col-done'].includes(column.id);
+
+  const handleDelete = () => {
+    if (!onDeleteColumn) return;
+    if (confirm(`Bạn có chắc muốn xóa cột "${column.title}"? Các công việc trong cột này sẽ được chuyển về "To Do".`)) {
+      onDeleteColumn(column.id);
+    }
+  };
 
   return (
     <div
@@ -47,13 +63,25 @@ const KanbanColumnComponent: React.FC<KanbanColumnProps> = ({ column, tasks }) =
           </span>
         </div>
 
-        <button
-          onClick={() => setCreateTaskOpen(true, column.id)}
-          className="rounded p-0.5 text-slate-400 hover:bg-white hover:text-slate-900 transition cursor-pointer shadow-2xs flex-shrink-0"
-          title={`Thêm task vào ${column.title}`}
-        >
-          <Plus className="h-3.5 w-3.5" />
-        </button>
+        <div className="flex items-center gap-1">
+          {canDelete && !isDefaultColumn && onDeleteColumn && (
+            <button
+              onClick={handleDelete}
+              className="rounded p-0.5 text-slate-400 hover:bg-rose-50 hover:text-rose-600 transition cursor-pointer shadow-2xs flex-shrink-0"
+              title={`Xóa cột ${column.title}`}
+            >
+              <Trash2 className="h-3.5 w-3.5" />
+            </button>
+          )}
+
+          <button
+            onClick={() => setCreateTaskOpen(true, column.id)}
+            className="rounded p-0.5 text-slate-400 hover:bg-white hover:text-slate-900 transition cursor-pointer shadow-2xs flex-shrink-0"
+            title={`Thêm task vào ${column.title}`}
+          >
+            <Plus className="h-3.5 w-3.5" />
+          </button>
+        </div>
       </div>
 
       {/* Task List (Vertically scrollable inside column, never overflows screen) */}

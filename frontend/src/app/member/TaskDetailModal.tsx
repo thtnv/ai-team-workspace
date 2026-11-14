@@ -19,8 +19,25 @@ import {
   UserPlus,
   UserCheck,
   Check,
+  Paperclip,
+  ExternalLink,
+  History,
+  CheckCircle2,
+  Award,
+  Link as LinkIcon,
+  ArrowRight,
 } from 'lucide-react';
-import { Task, Priority, Subtask, TaskComment, PRIORITY_CONFIG, WorkspaceMember } from '@/types';
+import confetti from 'canvas-confetti';
+import {
+  Task,
+  Priority,
+  Subtask,
+  TaskComment,
+  PRIORITY_CONFIG,
+  WorkspaceMember,
+  AttachmentItem,
+  ActivityItem,
+} from '@/types';
 
 function formatRelativeTime(isoString?: string) {
   if (!isoString) return 'Vừa xong';
@@ -73,7 +90,17 @@ export const TaskDetailModal: React.FC = () => {
   const [sendingComment, setSendingComment] = useState(false);
   const commentsEndRef = useRef<HTMLDivElement | null>(null);
 
+  // Agile & Supercharged Task State
+  const [storyPoints, setStoryPoints] = useState<number | undefined>(undefined);
+  const [attachments, setAttachments] = useState<AttachmentItem[]>([]);
+  const [isAddingAttach, setIsAddingAttach] = useState(false);
+  const [newAttachName, setNewAttachName] = useState('');
+  const [newAttachUrl, setNewAttachUrl] = useState('');
+  const [aiGeneratingChecklist, setAiGeneratingChecklist] = useState(false);
+  const [aiGeneratingCriteria, setAiGeneratingCriteria] = useState(false);
+
   const comments = selectedTaskForDetail?.comments || [];
+  const activityLogs = selectedTaskForDetail?.activity_log || [];
 
   // Close assignee dropdown on outside click
   useEffect(() => {
@@ -153,6 +180,8 @@ export const TaskDetailModal: React.FC = () => {
       setTags(selectedTaskForDetail.tags || []);
       setChecklists(selectedTaskForDetail.checklists || []);
       setAssignees(selectedTaskForDetail.assignees || []);
+      setStoryPoints(selectedTaskForDetail.story_points ?? undefined);
+      setAttachments(selectedTaskForDetail.attachments || []);
     }
   }, [selectedTaskForDetail]);
 
@@ -193,12 +222,119 @@ export const TaskDetailModal: React.FC = () => {
 
   const handleAddTag = () => {
     if (!tagInput.trim() || tags.includes(tagInput.trim())) return;
-    setTags([...tags, tagInput.trim()]);
+    const nextTags = [...tags, tagInput.trim()];
+    setTags(nextTags);
     setTagInput('');
+    handleSave({ tags: nextTags });
   };
 
   const handleRemoveTag = (t: string) => {
-    setTags(tags.filter((x) => x !== t));
+    const nextTags = tags.filter((x) => x !== t);
+    setTags(nextTags);
+    handleSave({ tags: nextTags });
+  };
+
+  const handleSelectStoryPoints = async (pts?: number) => {
+    const nextPts = storyPoints === pts ? undefined : pts;
+    setStoryPoints(nextPts);
+    await handleSave({ story_points: nextPts });
+  };
+
+  const handleAddAttachment = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!newAttachName.trim() || !newAttachUrl.trim()) return;
+
+    const isImg = /\.(jpeg|jpg|gif|png|webp|svg)($|\?)/i.test(newAttachUrl.trim());
+    const item: AttachmentItem = {
+      id: `att-${Date.now()}`,
+      name: newAttachName.trim(),
+      url: newAttachUrl.trim(),
+      file_type: isImg ? 'image' : 'link',
+      uploaded_by: currentUser?.full_name || 'Member',
+      created_at: new Date().toISOString(),
+    };
+
+    const nextAttachments = [...attachments, item];
+    setAttachments(nextAttachments);
+    setNewAttachName('');
+    setNewAttachUrl('');
+    setIsAddingAttach(false);
+    await handleSave({ attachments: nextAttachments });
+  };
+
+  const handleDeleteAttachment = async (attachId: string) => {
+    const nextAttachments = attachments.filter((a) => a.id !== attachId);
+    setAttachments(nextAttachments);
+    await handleSave({ attachments: nextAttachments });
+  };
+
+  const handleGenerateAIChecklist = async () => {
+    if (!selectedTaskForDetail || aiGeneratingChecklist) return;
+    setAiGeneratingChecklist(true);
+    try {
+      const res = await api.generateTaskAssistant(title, description);
+      if (res.suggested_checklists && res.suggested_checklists.length > 0) {
+        const newItems: Subtask[] = res.suggested_checklists.map((it: string, idx: number) => ({
+          id: `ai-chk-${Date.now()}-${idx}`,
+          title: it,
+          is_done: false,
+        }));
+        const updated = [...checklists, ...newItems];
+        setChecklists(updated);
+        await handleSave({ checklists: updated });
+      }
+    } catch (err: any) {
+      alert(err.message || 'Không thể sinh checklist AI.');
+    } finally {
+      setAiGeneratingChecklist(false);
+    }
+  };
+
+  const handleGenerateAICriteria = async () => {
+    if (!selectedTaskForDetail || aiGeneratingCriteria) return;
+    setAiGeneratingCriteria(true);
+    try {
+      const res = await api.generateTaskAssistant(title, description);
+      if (res.acceptance_criteria && res.acceptance_criteria.length > 0) {
+        const criteriaText =
+          '\n\n### Tiêu chí nghiệm thu (Acceptance Criteria):\n' +
+          res.acceptance_criteria.map((it: string) => `- [ ] ${it}`).join('\n');
+        const updatedDesc = (description || '') + criteriaText;
+        setDescription(updatedDesc);
+        await handleSave({ description: updatedDesc });
+      }
+    } catch (err: any) {
+      alert(err.message || 'Không thể sinh tiêu chí nghiệm thu AI.');
+    } finally {
+      setAiGeneratingCriteria(false);
+    }
+  };
+
+  const handleMoveColumn = async (destColId: string) => {
+    if (!selectedTaskForDetail || !currentBoard) return;
+    try {
+      const updated = await api.moveTask({
+        task_id: selectedTaskForDetail.id,
+        board_id: currentBoard.id,
+        source_col_id: selectedTaskForDetail.column_id,
+        dest_col_id: destColId,
+        new_order: selectedTaskForDetail.order,
+      });
+      updateTask(updated);
+      setSelectedTaskForDetail(updated);
+      if (destColId === 'col-done') {
+        try {
+          confetti({
+            particleCount: 80,
+            spread: 70,
+            origin: { y: 0.6 },
+            colors: ['#D4FF00', '#22c55e', '#38bdf8', '#f59e0b'],
+          });
+        } catch {}
+      }
+    } catch (err: any) {
+      alert(err.message || 'Không thể chuyển trạng thái công việc.');
+    }
   };
 
   const handleSave = async (overrideData?: Partial<Task>) => {
@@ -212,6 +348,8 @@ export const TaskDetailModal: React.FC = () => {
         tags,
         checklists,
         assignees,
+        story_points: storyPoints,
+        attachments,
         ...overrideData,
       };
       const result = await api.updateTask(selectedTaskForDetail.id, updates);
@@ -406,13 +544,13 @@ export const TaskDetailModal: React.FC = () => {
             </div>
           </div>
 
-          {/* Priority & Tags */}
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+          {/* Priority, Tags & Story Points */}
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-3.5">
             <div>
               <label className="text-[11px] font-bold uppercase tracking-wider text-slate-500">
                 Độ ưu tiên:
               </label>
-              <div className="mt-1.5 grid grid-cols-2 sm:grid-cols-4 gap-1.5">
+              <div className="mt-1.5 grid grid-cols-2 sm:grid-cols-4 md:grid-cols-2 gap-1.5">
                 {(Object.keys(PRIORITY_CONFIG) as Priority[]).map((pKey) => {
                   const conf = PRIORITY_CONFIG[pKey];
                   const isSelected = priority === pKey;
@@ -424,7 +562,7 @@ export const TaskDetailModal: React.FC = () => {
                         setPriority(pKey);
                         handleSave({ priority: pKey });
                       }}
-                      className={`rounded-lg border px-2 py-1.5 text-xs text-center transition cursor-pointer ${
+                      className={`rounded-lg border px-2 py-1 text-xs text-center transition cursor-pointer ${
                         isSelected
                           ? conf.activeClass
                           : 'border-slate-200 bg-white text-slate-600 hover:bg-slate-50'
@@ -434,6 +572,38 @@ export const TaskDetailModal: React.FC = () => {
                     </button>
                   );
                 })}
+              </div>
+            </div>
+
+            <div>
+              <label className="text-[11px] font-bold uppercase tracking-wider text-slate-500 flex items-center gap-1">
+                <Award className="h-3 w-3 text-amber-500" />
+                <span>Story Points:</span>
+              </label>
+              <div className="mt-1.5 flex items-center gap-1.5 flex-wrap">
+                {[1, 2, 3, 5, 8].map((pts) => (
+                  <button
+                    key={pts}
+                    type="button"
+                    onClick={() => handleSelectStoryPoints(pts)}
+                    className={`h-7 w-7 rounded-lg text-xs font-mono font-bold transition cursor-pointer border ${
+                      storyPoints === pts
+                        ? 'bg-slate-950 text-[#D4FF00] border-slate-950 shadow-2xs'
+                        : 'bg-white text-slate-700 border-slate-200 hover:bg-slate-100'
+                    }`}
+                  >
+                    {pts}
+                  </button>
+                ))}
+                {storyPoints !== undefined && (
+                  <button
+                    type="button"
+                    onClick={() => handleSelectStoryPoints(undefined)}
+                    className="text-[10px] text-slate-400 hover:text-rose-600 underline ml-1 cursor-pointer"
+                  >
+                    Xóa
+                  </button>
+                )}
               </div>
             </div>
 
@@ -478,11 +648,27 @@ export const TaskDetailModal: React.FC = () => {
             </div>
           </div>
 
-          {/* Description */}
+          {/* Description & AI Acceptance Criteria */}
           <div>
-            <label className="text-[11px] font-bold uppercase tracking-wider text-slate-500">
-              Mô tả chi tiết & Tiêu chí nghiệm thu:
-            </label>
+            <div className="flex items-center justify-between mb-1">
+              <label className="text-[11px] font-bold uppercase tracking-wider text-slate-500">
+                Mô tả chi tiết &amp; Tiêu chí nghiệm thu:
+              </label>
+              <button
+                type="button"
+                onClick={handleGenerateAICriteria}
+                disabled={aiGeneratingCriteria}
+                className="inline-flex items-center gap-1 rounded-md bg-[#D4FF00]/40 border border-[#bce000] px-2 py-0.5 text-[10px] font-bold text-slate-900 hover:bg-[#D4FF00] transition cursor-pointer shadow-2xs disabled:opacity-50"
+                title="Gemini AI tự động viết Tiêu chí nghiệm thu (Acceptance Criteria)"
+              >
+                {aiGeneratingCriteria ? (
+                  <Loader2 className="h-3 w-3 animate-spin" />
+                ) : (
+                  <Sparkles className="h-3 w-3 text-slate-900" />
+                )}
+                <span>AI viết Tiêu chí</span>
+              </button>
+            </div>
             <textarea
               rows={4}
               value={description}
@@ -493,14 +679,66 @@ export const TaskDetailModal: React.FC = () => {
             />
           </div>
 
-          {/* Checklists */}
+          {/* Checklists & AI Checklist Generator */}
           <div>
             <div className="flex items-center justify-between mb-2">
               <label className="text-[11px] font-bold uppercase tracking-wider text-slate-500 flex items-center gap-1.5">
                 <CheckSquare className="h-3.5 w-3.5 text-emerald-600" />
                 <span>Danh sách Checklist ({checklists.filter((c) => c.is_done).length}/{checklists.length})</span>
               </label>
+
+              <button
+                type="button"
+                onClick={handleGenerateAIChecklist}
+                disabled={aiGeneratingChecklist}
+                className="inline-flex items-center gap-1 rounded-md bg-[#D4FF00]/40 border border-[#bce000] px-2 py-0.5 text-[10px] font-bold text-slate-900 hover:bg-[#D4FF00] transition cursor-pointer shadow-2xs disabled:opacity-50"
+                title="Gemini AI tự động phân tích và sinh danh sách checklist các bước triển khai"
+              >
+                {aiGeneratingChecklist ? (
+                  <Loader2 className="h-3 w-3 animate-spin" />
+                ) : (
+                  <Sparkles className="h-3 w-3 text-slate-900" />
+                )}
+                <span>AI sinh Checklist</span>
+              </button>
             </div>
+
+            {/* Smart Automation Alert: Triggered when all checklists are checked */}
+            {checklists.length > 0 &&
+              checklists.every((c) => c.is_done) &&
+              selectedTaskForDetail.column_id !== 'col-done' && (
+                <div className="mb-3 rounded-xl border border-emerald-300 bg-emerald-50/80 p-3 flex items-center justify-between gap-3 animate-in fade-in duration-200 shadow-2xs">
+                  <div className="flex items-center gap-2">
+                    <CheckCircle2 className="h-5 w-5 text-emerald-600 shrink-0" />
+                    <div>
+                      <p className="text-xs font-bold text-emerald-950">
+                        Tất cả {checklists.length} mục checklist đã hoàn thành!
+                      </p>
+                      <p className="text-[11px] text-emerald-700">
+                        Bạn có muốn tự động chuyển công việc này sang giai đoạn tiếp theo không?
+                      </p>
+                    </div>
+                  </div>
+                  <div className="flex items-center gap-1.5 shrink-0">
+                    {selectedTaskForDetail.column_id !== 'col-review' && (
+                      <button
+                        type="button"
+                        onClick={() => handleMoveColumn('col-review')}
+                        className="rounded-lg bg-amber-500 hover:bg-amber-600 px-2.5 py-1 text-xs font-bold text-white transition shadow-2xs cursor-pointer"
+                      >
+                        In Review
+                      </button>
+                    )}
+                    <button
+                      type="button"
+                      onClick={() => handleMoveColumn('col-done')}
+                      className="rounded-lg bg-emerald-600 hover:bg-emerald-700 px-2.5 py-1 text-xs font-bold text-white transition shadow-2xs cursor-pointer"
+                    >
+                      Done
+                    </button>
+                  </div>
+                </div>
+              )}
 
             <div className="space-y-2 mb-3">
               {checklists.map((c, idx) => (
@@ -526,7 +764,7 @@ export const TaskDetailModal: React.FC = () => {
 
                   <button
                     onClick={() => handleDeleteChecklist(idx)}
-                    className="text-slate-400 hover:text-rose-600 p-1"
+                    className="text-slate-400 hover:text-rose-600 p-1 cursor-pointer"
                   >
                     <X className="h-3.5 w-3.5" />
                   </button>
@@ -546,12 +784,129 @@ export const TaskDetailModal: React.FC = () => {
               <button
                 type="button"
                 onClick={handleAddChecklist}
-                className="flex items-center gap-1 rounded-xl bg-slate-100 border border-slate-200 px-3.5 py-2 text-xs font-bold text-slate-700 hover:bg-slate-200"
+                className="flex items-center gap-1 rounded-xl bg-slate-100 border border-slate-200 px-3.5 py-2 text-xs font-bold text-slate-700 hover:bg-slate-200 cursor-pointer"
               >
                 <Plus className="h-3.5 w-3.5" />
                 <span>Thêm</span>
               </button>
             </div>
+          </div>
+
+          {/* Attachments Section */}
+          <div className="pt-4 border-t border-slate-200">
+            <div className="flex items-center justify-between mb-3">
+              <label className="text-[11px] font-bold uppercase tracking-wider text-slate-500 flex items-center gap-1.5">
+                <Paperclip className="h-3.5 w-3.5 text-slate-700" />
+                <span>Tài liệu đính kèm ({attachments.length})</span>
+              </label>
+              <button
+                type="button"
+                onClick={() => setIsAddingAttach(!isAddingAttach)}
+                className="inline-flex items-center gap-1 text-[11px] font-bold text-slate-700 hover:text-slate-900 cursor-pointer"
+              >
+                <Plus className="h-3 w-3" />
+                <span>Thêm đính kèm</span>
+              </button>
+            </div>
+
+            {isAddingAttach && (
+              <form onSubmit={handleAddAttachment} className="mb-3 rounded-xl border border-slate-200 bg-slate-50/80 p-3 space-y-2 animate-in fade-in duration-100">
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
+                  <input
+                    type="text"
+                    value={newAttachName}
+                    onChange={(e) => setNewAttachName(e.target.value)}
+                    placeholder="Tên tệp (VD: Figma Design, API Spec...)"
+                    className="w-full rounded-lg border border-slate-300 bg-white px-2.5 py-1.5 text-xs text-slate-900 focus:outline-hidden"
+                  />
+                  <input
+                    type="url"
+                    value={newAttachUrl}
+                    onChange={(e) => setNewAttachUrl(e.target.value)}
+                    placeholder="URL liên kết / Ảnh (https://...)"
+                    className="w-full rounded-lg border border-slate-300 bg-white px-2.5 py-1.5 text-xs text-slate-900 focus:outline-hidden"
+                  />
+                </div>
+                <div className="flex justify-end gap-2 pt-1">
+                  <button
+                    type="button"
+                    onClick={() => setIsAddingAttach(false)}
+                    className="px-2.5 py-1 text-xs text-slate-600 hover:bg-slate-200 rounded-lg cursor-pointer"
+                  >
+                    Hủy
+                  </button>
+                  <button
+                    type="submit"
+                    disabled={!newAttachName.trim() || !newAttachUrl.trim()}
+                    className="px-3 py-1 text-xs font-bold bg-slate-900 text-white rounded-lg hover:bg-slate-800 disabled:opacity-40 cursor-pointer"
+                  >
+                    Lưu đính kèm
+                  </button>
+                </div>
+              </form>
+            )}
+
+            {/* Attachments List */}
+            {attachments.length === 0 ? (
+              <div className="rounded-xl border border-dashed border-slate-200 bg-slate-50/40 p-3 text-center">
+                <p className="text-xs text-slate-400">Chưa có tài liệu hoặc đường dẫn đính kèm nào.</p>
+              </div>
+            ) : (
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
+                {attachments.map((att) => (
+                  <div
+                    key={att.id}
+                    className="flex items-center justify-between gap-2 rounded-xl border border-slate-200 bg-white p-2.5 shadow-2xs hover:border-slate-300 transition"
+                  >
+                    <div className="flex items-center gap-2 min-w-0">
+                      {att.file_type === 'image' ? (
+                        <img
+                          src={att.url}
+                          alt={att.name}
+                          className="h-8 w-8 rounded object-cover shrink-0 border border-slate-100"
+                        />
+                      ) : (
+                        <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-slate-100 text-slate-600 shrink-0">
+                          <LinkIcon className="h-4 w-4" />
+                        </div>
+                      )}
+                      <div className="min-w-0">
+                        <a
+                          href={att.url}
+                          target="_blank"
+                          rel="noopener noreferrer"
+                          className="text-xs font-bold text-slate-800 hover:text-indigo-600 truncate block hover:underline"
+                        >
+                          {att.name}
+                        </a>
+                        <span className="text-[10px] text-slate-400 font-mono truncate block">
+                          {formatRelativeTime(att.created_at)}
+                        </span>
+                      </div>
+                    </div>
+                    <div className="flex items-center gap-1 shrink-0">
+                      <a
+                        href={att.url}
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        className="p-1 rounded text-slate-400 hover:text-slate-700 cursor-pointer"
+                        title="Mở liên kết ngoài"
+                      >
+                        <ExternalLink className="h-3.5 w-3.5" />
+                      </a>
+                      <button
+                        type="button"
+                        onClick={() => handleDeleteAttachment(att.id)}
+                        className="p-1 rounded text-slate-400 hover:text-rose-600 cursor-pointer"
+                        title="Xóa đính kèm"
+                      >
+                        <Trash2 className="h-3.5 w-3.5" />
+                      </button>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            )}
           </div>
 
           {/* Comments Section (Plane & Linear Real-time Task Comments) */}
@@ -646,6 +1001,44 @@ export const TaskDetailModal: React.FC = () => {
                 )}
               </button>
             </form>
+          </div>
+
+          {/* Activity Log (Audit Trail) */}
+          <div className="pt-4 border-t border-slate-200">
+            <div className="flex items-center justify-between mb-3">
+              <label className="text-[11px] font-bold uppercase tracking-wider text-slate-500 flex items-center gap-1.5">
+                <History className="h-3.5 w-3.5 text-slate-700" />
+                <span>Nhật ký hoạt động ({activityLogs.length})</span>
+              </label>
+              <span className="text-[10px] text-slate-400 font-medium">Lịch sử kiểm toán thời gian thực</span>
+            </div>
+
+            {activityLogs.length === 0 ? (
+              <div className="rounded-xl border border-dashed border-slate-200 bg-slate-50/40 p-3 text-center">
+                <p className="text-xs text-slate-400">Chưa ghi nhận hoạt động nào.</p>
+              </div>
+            ) : (
+              <div className="space-y-1.5 max-h-40 overflow-y-auto pr-1 scrollbar-thin">
+                {activityLogs
+                  .slice()
+                  .reverse()
+                  .map((log) => (
+                    <div
+                      key={log.id}
+                      className="flex items-start gap-2 text-xs text-slate-600 py-1 border-b border-slate-100 last:border-b-0"
+                    >
+                      <div className="h-1.5 w-1.5 rounded-full bg-slate-400 mt-1.5 shrink-0" />
+                      <div className="flex-1 min-w-0">
+                        <span className="font-bold text-slate-900">{log.user_name} </span>
+                        <span>{log.detail || log.action}</span>
+                      </div>
+                      <span className="text-[10px] text-slate-400 font-mono shrink-0 ml-2">
+                        {formatRelativeTime(log.created_at)}
+                      </span>
+                    </div>
+                  ))}
+              </div>
+            )}
           </div>
         </div>
 
